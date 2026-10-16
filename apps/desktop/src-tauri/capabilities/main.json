@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main",
+  "description": "The main window. Only core defaults; the MIDI bridge commands get added here in D2.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

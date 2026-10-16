@@ -2,11 +2,13 @@
 import { execFileSync } from "node:child_process";
 import { copyFileSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const env = { ...process.env, PATH: `${join(homedir(), ".cargo", "bin")}:${process.env.PATH}` };
+// Windows spells it "Path"; reuse whichever key exists so the real PATH isn't shadowed.
+const pathKey = Object.keys(process.env).find((k) => k.toUpperCase() === "PATH") ?? "PATH";
+const env = { ...process.env, [pathKey]: `${join(homedir(), ".cargo", "bin")}${delimiter}${process.env[pathKey]}` };
 
 execFileSync(
   "cargo",

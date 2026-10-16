@@ -18,7 +18,7 @@ Status: plan · Oct 2026 · builds on [PLAN.md](PLAN.md) §3.1 (intent layer), �
 | Parsing | A new pure crate, **`hypertoy-midi`**: byte-stream parser (running status, SysEx, realtime bytes mid-message), serial framing, controller profiles and the mapping model. No I/O, so it is unit-tested and also compiled to WASM for the browser path. |
 | Bridge to the page | A Tauri **`Channel`** streams compact, timestamped events into the webview. Commands (`list`, `open`, `close`, `send`) are a small allow-listed command set. |
 | Inside the app | A `ControllerSource` interface with three backends: **Tauri** (desktop), **Web MIDI** (Chrome/Edge in a browser), **Web Serial** (Chromium, optional). All feed one **mapper** that emits intents: `poke`, `stretch`, `twist`, `pulse-edit`, `open-chest`, `focus`. |
-| Order of work | Parser crate → **Web MIDI in the browser first** (proves the mapping UX with zero native code) → Tauri shell → serial → MIDI learn and profiles → clock and MIDI out → signed installers. |
+| Order of work | Minimal shell (done, validates Tauri) → parser crate → **Web MIDI in the browser first** (proves the mapping UX with zero native code) → Tauri shell → serial → MIDI learn and profiles → clock and MIDI out → signed installers. |
 
 ---
 
@@ -164,7 +164,7 @@ Split `input.ts` into **device adapters** and a shared **intent dispatcher** (`i
 
 | Control | Intent | Target |
 |---|---|---|
-| Note on (keys or pads) | `poke(velocity / 127)`; the note picks the harmonic for toys with a `touch-node` gesture (Spire), otherwise just strikes | Focused toy |
+| Note on (keys or pads) | `poke(velocity / 127)` **in pitch**: the toy sounds the played note, snapped to the world Tuning (see *Note modes* below) | Focused toy |
 | Pads 1–8 (profile-defined) | `focus(slot n)` when held with the profile's shift pad; otherwise poke slot n directly | Toy in slot n |
 | Absolute knob / fader (CC) | `setParam`, scaled into the param's declared `range`, with **soft takeover** (pickup) so a knob doesn't jump the value | Focused toy's params in declaration order: first `stretch` param, then `twist`, then the rest |
 | Relative encoder | `nudge(gesture, delta × step)` | Same as above |
@@ -174,13 +174,19 @@ Split `input.ts` into **device adapters** and a shared **intent dispatcher** (`i
 | Transport play/stop | Start/stop all Pulses | World |
 | Profile "chest" button | `openChest()` | — |
 
+**Note modes** (decided Oct 2026). Each toy has a per-player note mode, switched in the device panel or the Pulse editor:
+
+- **In pitch (default):** the note number sets the strike's pitch, snapped to the world Tuning like any physics-derived pitch (`wild` turns snapping off). The toy's Law still shapes the timbre and the visuals follow the pitch (a Spire's string length, an Orrery planet's orbit), so pillar 3 ("one parameter, two senses") holds. Needs a `pitch` field on the worklet `poke` command, mirrored in `engine.rs` and `protocol.ts`.
+- **Lawful:** the note only chooses among the pitches the toy's physics allows: the nearest Spire harmonic, the nearest Orrery planet, the Kettle's current resonances. Keys map to those pitches in order, wrapping by octave.
+
 Focus follows the last toy touched by any device, as `lastToy` does today, and shows as a soft halo so it is obvious which toy the knobs drive.
 
 ### 5.3 MIDI learn and bindings
 
 - **Learn:** long-press (or right-click) a toy part or a Pulse editor control → "Listen for a control" → move a knob or hit a pad → bound. Pure gesture-first; the text is a caption, per pillar 7.
 - A binding is `{ device match, msg match (ch, type, number), target (slot | focused), param or intent, curve, range, mode (absolute | relative | toggle | momentary) }`.
-- Bindings are stored **per controller** (by profile id or port name) in local storage, and optionally inside a **Constellation**, so a performer's rig travels with their saved world. Bindings referencing a slot survive a reload because slots are stable.
+- Bindings **belong to the player** by default (decided Oct 2026): stored per controller (by profile id or port name) in the player's local storage, so a rig follows them into every world.
+- **Save mappings to this world** copies the current bindings into the **Constellation**. When that world is opened, its bindings win for matching controllers; the player's own bindings fill the gaps and come back when they leave. Bindings referencing a slot survive a reload because slots are stable.
 - **Multiplayer (Phase 2):** controllers only drive the local player's own toys or the toy they focus; intents go through the same path as pointer intents, so the CRDT layer needs nothing special.
 
 ### 5.4 Profiles
@@ -275,9 +281,15 @@ D1 can run in parallel with D0 by using a minimal TypeScript parser first and sw
 
 ---
 
-## 12. Open questions
+## 12. Decisions and open questions
 
-1. **Tauri vs Electron.** Electron would give Web MIDI and Web Serial on every OS with no native bridge, at ~10× the download size and a second runtime (Node) beside the Rust core. This plan picks Tauri because the bridge is small and also unlocks things Chromium can't do (31 250-baud serial, multi-client ports, a path to native audio). Revisit if the bridge grows past its budget.
-2. Should notes on a keyboard play the focused toy **in pitch** (snapped to the world Tuning, overriding the toy's own Law for that strike), or only choose among its lawful pitches (e.g. the Spire's harmonics)? The second keeps pillar 2 ("alien but lawful"); the first is what players with keyboards will expect.
-3. Do bindings belong to the **player** (follows their rig across worlds) or to the **Constellation** (follows the world)? Proposal: player by default, with an opt-in "save my mapping with this world."
-4. Do we ship a desktop build before roadmap Phase 3 (Creators), or keep it a tester/performer build until the open launch?
+**Decided (Oct 2026)**
+
+- **Tauri**, not Electron. Electron would give Web MIDI and Web Serial on every OS with no native bridge, but at ~10× the download size and a second runtime (Node) beside the Rust core. The bridge is small and unlocks what Chromium can't (31 250-baud serial, multi-client ports, a path to native audio). Revisit only if the bridge grows past its budget.
+- **Keyboard notes play in pitch by default**, with a per-toy *lawful* mode that only chooses among the pitches its physics allows (§5.2).
+- **Mappings belong to the player by default**, with *save mappings to this world* to store them in the Constellation (§5.3).
+- **A minimal desktop build exists now** (`apps/desktop`, `npm run desktop`) to validate the Tauri shell before the bridge work in D2.
+
+**Open**
+
+1. Do we ship a desktop build before roadmap Phase 3 (Creators), or keep it a tester/performer build until the open launch?

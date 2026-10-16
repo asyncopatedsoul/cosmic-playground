@@ -1,6 +1,8 @@
 [workspace]
 resolver = "2"
-members = ["crates/*"]
+members = ["crates/*", "apps/desktop/src-tauri"]
+# `cargo test` / `cargo build` at the root skip the desktop shell (it pulls in Tauri).
+default-members = ["crates/*"]
 
 [workspace.package]
 version = "0.1.0"

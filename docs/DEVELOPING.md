@@ -20,6 +20,8 @@
 | `npm run build` | WASM plus a static production build in `apps/playground/dist` |
 | `npm run tunnel` | Dev server plus a public HTTPS URL through ngrok |
 | `npm run tunnel -- --build` | Same, but serves the production build (`vite preview` on :4173) |
+| `npm run desktop` | The [desktop shell](#desktop-build-tauri): dev server inside a native window, with hot reload |
+| `npm run desktop:build` | Release desktop app and installers in `target/release/bundle/` |
 
 Rust changes need the WASM rebuilt: rerun `npm run build:wasm` (the dev server picks up the new `public/hypertoy.wasm` on reload).
 
@@ -67,6 +69,31 @@ Ctrl-C stops the server and the tunnel together. While it runs, http://127.0.0.1
 - **The URL is public.** Anyone with the link can load your dev server while the tunnel is up. Don't leave it running unattended. For a private session, add `--basic-auth 'user:pass'` to the ngrok args in `scripts/tunnel.mjs` (it's not on by default because headsets make typing passwords painful).
 - **Latency.** The tunnel only carries page loads and hot-reload messages. Audio is generated on the device, so the tunnel's network latency never affects timing.
 - **Quest 3.** Type the guide URL into the Meta Quest Browser once and bookmark it. A static domain keeps it short and stops it changing between runs. Remote debugging: enable developer mode, connect over USB, and open `chrome://inspect` on the desktop.
+
+## Desktop build (Tauri)
+
+`apps/desktop` wraps the same Vite build in a [Tauri 2](https://v2.tauri.app) window. For now it only validates the shell; the MIDI/serial bridge comes next (see [DESKTOP-MIDI.md](DESKTOP-MIDI.md)).
+
+### Extra prerequisites
+
+- **Windows:** Rust's MSVC toolchain needs the *Visual Studio Build Tools* with the **Desktop development with C++** workload. WebView2 ships with Windows 11.
+- **macOS:** Xcode Command Line Tools (`xcode-select --install`).
+- **Linux:** `webkit2gtk-4.1`, `libayatana-appindicator3` and `librsvg2` dev packages (see Tauri's prerequisites page).
+- Then `npm install` at the root, which installs the Tauri CLI into the workspace.
+
+### Run it
+
+```bash
+npm run desktop
+```
+
+This runs `npm run dev` (WASM + Vite on :5173) and opens a native window pointed at it. To check the webview-to-Rust IPC path, open devtools in the window (right-click → Inspect, debug builds only) and run `await __TAURI_INTERNALS__.invoke("shell_info")`.
+
+`npm run desktop:build` makes a release build: the WASM engine, the production bundle, the shell, and installers (NSIS/MSI on Windows, `.app`/`.dmg` on macOS, AppImage/`.deb` on Linux) in `target/release/bundle/`. Installers are unsigned for now.
+
+Icons are generated from `apps/desktop/icon.svg` with `npm -w apps/desktop run icons`.
+
+The desktop crate is a workspace member but not a default member, so `cargo test` and `npm test` don't build Tauri.
 
 ## Where things live
 

@@ -4,4 +4,44 @@ An all-ages, multiplayer playground for sound and geometry. You play with **hype
 
 - 📐 **Plan:** [docs/PLAN.md](docs/PLAN.md) covers the experience, toy catalog, Rust + TypeScript architecture, multiplayer, modding SDK, prior art, go-to-market and roadmap.
 
-Status: planning.
+Status: **Phase 0 toy prototype** (single player, desktop and touch).
+
+## Run it
+
+Needs Node 20+ and Rust with the `wasm32-unknown-unknown` target (`rustup target add wasm32-unknown-unknown`).
+
+```bash
+npm install
+npm run dev
+```
+
+Then open http://localhost:5173 and tap anything. `npm test` runs the Rust tests and the TypeScript type-check; `npm run build` makes a static build in `apps/playground/dist`.
+
+## What's in Phase 0
+
+Three toys from three Principle families, picked to stress the toy anatomy in three different ways:
+
+| Toy | Law | Play it |
+|---|---|---|
+| **Monochord Spire** | f = (1/2L)·√(T/μ), harmonics at L/n | Tap the string. Drag the cap to stretch, turn the gold peg to tighten, tap a bead for a harmonic. |
+| **Kepler Orrery** | T ∝ r^1.5; each meridian transit chimes | Drag planets in and out. Drag out of the sun to launch one, into the sun to remove it. |
+| **Reaction Kettle** | Gray-Scott reaction-diffusion; Minnaert bubbles (f·r ≈ 3.26 m/s) | Drag across the surface to pour, turn the rim to change the reagents. |
+
+Every toy has a **Pulse**: tap its pink heart for a ring of steps (tap a dot on or off, long-press for "sometimes"), a rate chosen by shape, and play/pause. The world's **Tuning** (top bar) snaps physical pitches to a scale; ✺ *wild* turns snapping off. Move toys by their base and drop them on the chest to put them away.
+
+## Layout
+
+```
+crates/
+  hypertoy-core/   Tuning, Clock, Pulse patterns, deterministic RNG
+  hypertoy-dsp/    Karplus-Strong pluck, FM bell, bubbles, SVF, reverb, limiter (no allocation in tick)
+  hypertoy-laws/   string, Kepler, Minnaert, Gray-Scott
+  hypertoy-wasm/   the engine + plain C-ABI exports (no wasm-bindgen: it must run in an AudioWorklet)
+apps/playground/   Vite + three.js app
+  src/audio/       worklet host, field Worker, the protocol shared with the engine
+  src/toys/        Form for each toy; params and gestures are declared, not coded
+  src/input.ts     the intent layer: poke / grab / stretch / twist
+  src/ui/          chest, Pulse editor, HUD
+```
+
+The engine runs in the AudioWorklet and renders every 128-frame block in WASM. It posts a state snapshot back about every 8 ms, and the visuals follow that snapshot, so what you see is what you hear. The Kettle's field runs in its own Worker from the same WASM binary.

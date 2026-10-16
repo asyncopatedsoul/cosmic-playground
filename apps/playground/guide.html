@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#04050d" />
+    <title>Cosmic Playground Guide</title>
+    <meta name="description" content="How to get into Cosmic Playground on your computer, phone or Quest 3." />
+  </head>
+  <body>
+    <main>
+      <header class="hero">
+        <div class="orbit" aria-hidden="true"><i></i><i></i><i></i></div>
+        <h1>Cosmic Playground</h1>
+        <p class="lede">Alien toys that follow real physics. Poke them, stretch them, set them playing on their own, and listen to what happens.</p>
+        <p class="detected" id="detected">Checking your device…</p>
+        <a class="enter" href="./" id="enter">Enter the playground</a>
+        <p class="hint" id="enter-hint">Your first tap wakes the sound. Headphones help.</p>
+      </header>
+
+      <section class="alerts" id="alerts" aria-live="polite"></section>
+
+      <nav class="tabs" role="tablist" aria-label="Device">
+        <button role="tab" id="tab-desktop" aria-controls="panel-desktop" data-platform="desktop">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>
+          Computer
+        </button>
+        <button role="tab" id="tab-mobile" aria-controls="panel-mobile" data-platform="mobile">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
+          Phone &amp; tablet
+        </button>
+        <button role="tab" id="tab-quest" aria-controls="panel-quest" data-platform="quest">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v5a3 3 0 0 1-3 3h-3l-2-2h-2l-2 2H6a3 3 0 0 1-3-3z"/><circle cx="8" cy="11.5" r="1.5"/><circle cx="16" cy="11.5" r="1.5"/></svg>
+          Quest 3
+        </button>
+      </nav>
+
+      <!-- Desktop ------------------------------------------------------------ -->
+      <section class="panel" role="tabpanel" id="panel-desktop" aria-labelledby="tab-desktop">
+        <h2>Getting in</h2>
+        <ol class="steps">
+          <li>Use a recent <b>Chrome, Edge, Firefox or Safari</b>.</li>
+          <li>Press <b>Enter the playground</b>, then click anything. Browsers only allow sound after your first click.</li>
+          <li>A string and an orrery are already waiting. Click the purple string to pluck it.</li>
+        </ol>
+
+        <h2>Controls</h2>
+        <table class="controls">
+          <tbody>
+            <tr><th>Poke a toy</th><td>Click it. <kbd>Shift</kbd>-click is softer.</td></tr>
+            <tr><th>Stretch</th><td>Scroll the wheel over a toy, or drag its handle (the Spire's glowing cap, an Orrery planet).</td></tr>
+            <tr><th>Twist</th><td><kbd>Q</kbd> / <kbd>E</kbd>, <kbd>Alt</kbd>-drag or right-drag on a toy, or turn a gold peg or the Kettle's rim.</td></tr>
+            <tr><th>Move a toy</th><td>Drag its base. Drop it on the chest to put it away.</td></tr>
+            <tr><th>Make it play itself</th><td>Click the toy's pink <span class="heart"></span> heart to open its Pulse.</td></tr>
+            <tr><th>Get more toys</th><td>Open the chest at the bottom, or press <kbd>Tab</kbd>.</td></tr>
+            <tr><th>Look around</th><td>Drag empty space. Scroll over empty space to zoom.</td></tr>
+            <tr><th>Shortcuts</th><td><kbd>Space</kbd> pokes the last toy you touched. <kbd>Esc</kbd> closes the Pulse.</td></tr>
+          </tbody>
+        </table>
+
+        <h2>Tips &amp; caveats</h2>
+        <ul class="notes">
+          <li class="tip">Glow effects are on for computers. If the fans spin up or the picture stutters, close other heavy tabs. Sound always comes first, so the picture slows down before the audio does.</li>
+          <li class="tip">If you hear nothing, check that the tab isn't muted (right-click the tab) and that the volume slider in the top bar is up.</li>
+          <li class="warn">Switching to another tab pauses the animation. Toys keep playing, but some browsers slow background tabs down after a while.</li>
+        </ul>
+
+        <div class="share" id="share">
+          <div>
+            <h2>Open it on another device</h2>
+            <p id="share-text">Scan this with a phone to open this guide there.</p>
+          </div>
+          <img id="qr" alt="QR code for this page" width="148" height="148" />
+        </div>
+      </section>
+
+      <!-- Mobile ------------------------------------------------------------- -->
+      <section class="panel" role="tabpanel" id="panel-mobile" aria-labelledby="tab-mobile">
+        <h2>Getting in</h2>
+        <ol class="steps">
+          <li>Open this page in <b>Safari</b> (iPhone, iPad) or <b>Chrome</b> (Android).</li>
+          <li>Tap <b>Enter the playground</b>, then tap anything to wake the sound.</li>
+          <li id="ios-silent"><b>iPhone and iPad:</b> if you hear nothing, flip the <b>ring/silent switch</b> to ring (or turn off Silent Mode). Web sound follows it.</li>
+        </ol>
+
+        <h2>Controls</h2>
+        <table class="controls">
+          <tbody>
+            <tr><th>Poke a toy</th><td>Tap it. On screens that sense pressure, a firmer tap is louder.</td></tr>
+            <tr><th>Stretch</th><td>Pinch with two fingers on a toy, or drag its handle.</td></tr>
+            <tr><th>Twist</th><td>Rotate two fingers on a toy, or turn a gold peg or the Kettle's rim.</td></tr>
+            <tr><th>Move a toy</th><td>Drag its base. Drop it on the chest to put it away.</td></tr>
+            <tr><th>Make it play itself</th><td>Tap its pink <span class="heart"></span> heart. In the ring, tap dots on and off; press and hold a dot for "sometimes".</td></tr>
+            <tr><th>Get more toys</th><td>Tap the chest at the bottom of the screen.</td></tr>
+            <tr><th>Look around</th><td>Drag empty space. Pinch empty space to zoom.</td></tr>
+          </tbody>
+        </table>
+
+        <h2>Tips &amp; caveats</h2>
+        <ul class="notes">
+          <li class="tip">Turn off <b>Low Power Mode</b> / <b>Battery Saver</b> and close other apps for the steadiest sound.</li>
+          <li class="tip">Portrait works, but landscape gives the toys more room.</li>
+          <li class="tip">Glow effects are switched off on phones to leave power for the sound.</li>
+          <li class="warn">If the screen locks or you switch apps, the sound stops. Tap again when you come back.</li>
+          <li class="warn">Bluetooth headphones add a little delay between a tap and its sound. Wired headphones or the speaker feel tighter.</li>
+        </ul>
+      </section>
+
+      <!-- Quest -------------------------------------------------------------- -->
+      <section class="panel" role="tabpanel" id="panel-quest" aria-labelledby="tab-quest">
+        <div class="callout">
+          <b>Today it's a window, not a world.</b> On Quest 3 the playground currently runs as a flat page in the Meta Quest Browser. Stepping inside in VR, and placing toys on your real table in mixed reality, comes in the next phase.
+        </div>
+
+        <h2>Getting in</h2>
+        <ol class="steps">
+          <li>Open the <b>Meta Quest Browser</b> and go to this page. The address must start with <b>https://</b>. Bookmark it so you only type it once.</li>
+          <li>Point at <b>Enter the playground</b> and pull the trigger (or pinch, with hand tracking).</li>
+          <li>Make the window bigger: drag its corner to resize it, so the toys are easier to hit.</li>
+        </ol>
+
+        <h2>Controls</h2>
+        <table class="controls">
+          <tbody>
+            <tr><th>Poke a toy</th><td>Point and pull the <b>trigger</b>, or <b>pinch</b> with hand tracking.</td></tr>
+            <tr><th>Stretch</th><td>Trigger-drag a handle (the Spire's glowing cap, an Orrery planet), or push the <b>thumbstick</b> up and down over a toy.</td></tr>
+            <tr><th>Twist</th><td>Trigger-drag a gold peg or the Kettle's rim.</td></tr>
+            <tr><th>Move a toy</th><td>Trigger-drag its base. Drop it on the chest to put it away.</td></tr>
+            <tr><th>Make it play itself</th><td>Point at its pink <span class="heart"></span> heart and pull the trigger.</td></tr>
+            <tr><th>Look around</th><td>Trigger-drag empty space. Thumbstick over empty space zooms.</td></tr>
+          </tbody>
+        </table>
+
+        <h2>Tips &amp; caveats</h2>
+        <ul class="notes">
+          <li class="tip">Hand tracking works, but controllers are more precise for small handles like the harmonic beads.</li>
+          <li class="tip">Close other browser tabs. The headset shares one processor between the picture and the sound.</li>
+          <li class="warn">Two-finger gestures and keyboard shortcuts aren't available here. Every toy has a handle you can drag instead.</li>
+          <li class="warn">A plain address like <code>http://192.168…</code> loads the page but stays silent, because headsets only allow web sound on secure (https) pages. Ask whoever is hosting for the https link.</li>
+        </ul>
+      </section>
+
+      <section class="checks">
+        <h2>Is this device ready?</h2>
+        <ul id="checks"></ul>
+      </section>
+
+      <footer>
+        <p>Cosmic Playground · Phase 0 prototype · <a href="./">Enter</a></p>
+      </footer>
+    </main>
+    <script type="module" src="/src/guide/guide.ts"></script>
+  </body>
+</html>

@@ -2,11 +2,14 @@
   "name": "cosmic-playground",
   "private": true,
   "license": "MIT OR Apache-2.0",
-  "workspaces": ["apps/*"],
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
     "build:wasm": "node scripts/build-wasm.mjs",
     "dev": "npm run build:wasm && npm -w apps/playground run dev",
     "build": "npm run build:wasm && npm -w apps/playground run build",
-    "test": "PATH=\"$HOME/.cargo/bin:$PATH\" cargo test && npm -w apps/playground run typecheck"
+    "test": "PATH=\"$HOME/.cargo/bin:$PATH\" cargo test && npm -w apps/playground run typecheck",
+    "tunnel": "node scripts/tunnel.mjs"
   }
 }

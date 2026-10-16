@@ -64,7 +64,7 @@ onmessage = async (ev: MessageEvent<ToField>) => {
     else queue.push(m);
     return;
   }
-  const bytes = await fetch(m.url).then((r) => r.arrayBuffer());
+  const bytes = await fetch(m.url, { headers: { "ngrok-skip-browser-warning": "1" } }).then((r) => r.arrayBuffer());
   const { instance } = await WebAssembly.instantiate(bytes, {});
   x = instance.exports as unknown as FieldExports;
   for (const q of queue) apply(q);

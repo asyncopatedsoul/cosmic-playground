@@ -3,6 +3,8 @@
 An all-ages, multiplayer playground for sound and geometry. You play with **hypertoys**: impossible, alien toys that follow real first principles of physics, music and chemistry. Set them to play on their own, couple them together, and improvise generative soundscapes and 2D/3D animation together. It runs on touch, desktop, gamepad, and VR/AR (WebXR on Quest 3).
 
 - 📐 **Plan:** [docs/PLAN.md](docs/PLAN.md) covers the experience, toy catalog, Rust + TypeScript architecture, multiplayer, modding SDK, prior art, go-to-market and roadmap.
+- 🛠 **Developing:** [docs/DEVELOPING.md](docs/DEVELOPING.md) covers setup, scripts, and sharing over ngrok for phones and Quest 3.
+- 🧭 **Help system plan:** [docs/HELP-SYSTEM.md](docs/HELP-SYSTEM.md) covers the cross-platform tutorial and anchored hints.
 
 Status: **Phase 0 toy prototype** (single player, desktop and touch).
 
@@ -15,7 +17,9 @@ npm install
 npm run dev
 ```
 
-Then open http://localhost:5173 and tap anything. `npm test` runs the Rust tests and the TypeScript type-check; `npm run build` makes a static build in `apps/playground/dist`.
+Then open http://localhost:5173 and tap anything. New players can start at http://localhost:5173/guide.html, which detects their device and explains how to get in.
+
+To try it on a phone or Quest 3, run `npm run tunnel`. It serves the app on a public HTTPS URL through ngrok (see [docs/DEVELOPING.md](docs/DEVELOPING.md#share-over-ngrok)). `npm test` runs the Rust tests and the TypeScript type-check; `npm run build` makes a static build in `apps/playground/dist`.
 
 ## What's in Phase 0
 

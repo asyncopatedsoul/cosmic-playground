@@ -1,5 +1,5 @@
 import workletUrl from "./worklet.ts?worker&url";
-import { wasmUrl, type Command, type FromWorklet } from "./protocol";
+import { fetchWasm, type Command, type FromWorklet } from "./protocol";
 
 /**
  * Main-thread side of the audio engine. The world can send commands before
@@ -31,10 +31,7 @@ export class AudioHost {
 
   private async boot(ctx: AudioContext) {
     const [bytes] = await Promise.all([
-      fetch(wasmUrl()).then((r) => {
-        if (!r.ok) throw new Error(`hypertoy.wasm: HTTP ${r.status}`);
-        return r.arrayBuffer();
-      }),
+      fetchWasm(),
       ctx.audioWorklet.addModule(workletUrl),
     ]);
     const node = new AudioWorkletNode(ctx, "hypertoy", {

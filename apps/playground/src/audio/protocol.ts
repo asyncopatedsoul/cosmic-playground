@@ -80,4 +80,11 @@ export interface FieldExports {
   gs_activity(f: number): number;
 }
 
+/** Fetch the engine binary. The header stops ngrok's free-plan warning page replacing it. */
+export const fetchWasm = () =>
+  fetch(wasmUrl(), { headers: { "ngrok-skip-browser-warning": "1" } }).then((r) => {
+    if (!r.ok) throw new Error(`hypertoy.wasm: HTTP ${r.status}`);
+    return r.arrayBuffer();
+  });
+
 export const wasmUrl = () => new URL(`${import.meta.env.BASE_URL}hypertoy.wasm`, location.href).href;

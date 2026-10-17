@@ -113,6 +113,8 @@ Icons are generated from `apps/desktop/icon.svg` with `npm -w apps/desktop run i
 
 The desktop crate is a workspace member but not a default member, so `cargo test` and `npm test` don't build Tauri.
 
+**Windows Smart App Control.** With Smart App Control on, Windows may refuse to run freshly compiled, unsigned build-script binaries, and the build fails with `An Application Control policy has blocked this file. (os error 4551)`. Which crate gets blocked is effectively random per build profile (on one machine the debug build passed and the release build stayed blocked on `erased-serde`). Workarounds: build release bundles in CI, or on a machine with Smart App Control off. Turning it off can't be undone without resetting Windows. `npm run desktop` uses `--strictPort` on :5173, so it fails loudly instead of loading a stale server if another Vite is already running there.
+
 ## Where things live
 
 See the layout section of the [README](../README.md#layout). The engine's param ids and snapshot layout are mirrored between `crates/hypertoy-wasm/src/engine.rs` and `apps/playground/src/audio/protocol.ts`; change both together.

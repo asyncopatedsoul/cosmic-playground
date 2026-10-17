@@ -111,6 +111,7 @@ export class Hud {
     const help = document.getElementById("help")!;
     el.querySelector(".hud-help")!.addEventListener("click", () => help.classList.toggle("open"));
     help.addEventListener("click", () => help.classList.remove("open"));
+    world.onWorld = render;
     render();
   }
 }

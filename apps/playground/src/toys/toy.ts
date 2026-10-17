@@ -201,8 +201,10 @@ export abstract class Toy {
   setParam(name: string, value: number) {
     const d = this.defs[name];
     if (!d || !this.editable) return;
-    let v = THREE.MathUtils.clamp(value, d.range[0], d.range[1]);
+    let v: number | null = THREE.MathUtils.clamp(value, d.range[0], d.range[1]);
     if (d.step) v = Math.round(v / d.step) * d.step;
+    if (!this.world.applying) v = this.world.mode.constrain(this, name, v);
+    if (v === null) return this.refuse();
     if (v === this.params[name]) return;
     this.params[name] = v;
     this.sendParam(name);
@@ -220,6 +222,14 @@ export abstract class Toy {
   }
 
   protected onParam(_name: string) {}
+
+  /** Seconds left of the "pinned" shake after the mode refused an edit (MODES.md §5.5). */
+  private shake = 0;
+
+  /** The mode refused an edit: a short resistive shake, no error text. */
+  refuse() {
+    this.shake = 0.25;
+  }
 
   /** Set the toy's level in the music (shared, like a param). */
   setVolume(value: number) {
@@ -259,7 +269,9 @@ export abstract class Toy {
 
   setPulse(p: Partial<PulseState>) {
     if (!this.editable) return;
-    Object.assign(this.pulse, p);
+    const q = this.world.applying ? p : this.world.mode.constrainPulse(this, p);
+    if (!q) return this.refuse();
+    Object.assign(this.pulse, q);
     this.sendPulse();
     this.world.edited(this, "pulse");
   }
@@ -267,7 +279,9 @@ export abstract class Toy {
   /** Script the Pulse with mini-notation, or clear it ("") to go back to the ring. */
   setPattern(text: string) {
     if (!this.editable) return;
-    this.pattern = text.trim();
+    const t = this.world.applying ? text : this.world.mode.constrainPattern(this, text);
+    if (t === null) return this.refuse();
+    this.pattern = t.trim();
     this.patternError = null;
     this.world.audio.send({ t: "pattern", slot: this.slot, text: this.pattern });
     this.world.edited(this, "pattern");
@@ -286,6 +300,7 @@ export abstract class Toy {
 
   moveTo(pos: THREE.Vector3) {
     if (!this.editable) return;
+    if (!this.world.applying && !this.world.mode.allowMove(this)) return this.refuse();
     this.group.position.copy(pos);
     this.sendPan();
     this.world.edited(this, "pos");
@@ -316,7 +331,11 @@ export abstract class Toy {
     this.poke(strength);
   }
 
-  update(_dt: number, snap: SnapView | null, t: number) {
+  update(dt: number, snap: SnapView | null, t: number) {
+    if (this.shake > 0) {
+      this.shake = Math.max(0, this.shake - dt);
+      this.group.rotation.y = this.world.stage.reducedMotion ? 0 : Math.sin(this.shake * 90) * this.shake * 0.25;
+    }
     const f = snap ? snap.get(Snap.flash) : 0;
     this.flash = this.world.stage.reducedMotion ? f * 0.3 : f;
     const beat = this.pulse.enabled ? 0.5 + 0.5 * Math.sin(t * 2.4) : 0;

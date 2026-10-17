@@ -1389,3 +1389,99 @@ body.world-locked .hud-room::after {
   left: auto;
   right: 14px;
 }
+
+/* ---- Puzzles (docs/MODES.md) ------------------------------------------- */
+
+.hud-puzzles {
+  gap: 6px;
+  color: var(--ink-dim);
+}
+
+.hud-puzzles svg {
+  width: 18px;
+  height: 18px;
+}
+
+.hud-puzzles.bloomed {
+  color: #ffd9a0;
+}
+
+.puzzle-dots {
+  display: flex;
+  gap: 3px;
+}
+
+.puzzle-dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  opacity: 0.6;
+}
+
+.puzzle-dots i.on {
+  background: #ffd9a0;
+  border-color: #ffd9a0;
+  opacity: 1;
+}
+
+.puzzle-shelf {
+  position: fixed;
+  top: calc(max(10px, env(safe-area-inset-top)) + 56px);
+  right: var(--pad);
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 18px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  backdrop-filter: blur(10px);
+  z-index: 20;
+}
+
+.puzzle-shelf[hidden] {
+  display: none;
+}
+
+.puzzle-shelf button {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: #ffd9a0;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 20px;
+}
+
+.puzzle-shelf button svg {
+  width: 36px;
+  height: 36px;
+}
+
+.puzzle-shelf button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.puzzle-shelf button:disabled {
+  color: var(--ink-dim);
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.puzzle-shelf button.current {
+  outline: 2px solid #ffd9a0;
+}
+
+.puzzle-shelf button b {
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  font-size: 12px;
+  color: #9dff7a;
+}
+
+.puzzle-shelf button[data-leave] {
+  color: var(--ink-dim);
+}

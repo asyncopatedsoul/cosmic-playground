@@ -6,7 +6,7 @@
 > scenario's finale layers join them, so the reward is a composition you made. Progress is shown without words
 > by **the Heart**, a body in the middle of the world that fills, layer by layer, as each toy reaches its part.
 
-Status: plan · Oct 2026 · builds on [SAVE-LOAD.md](SAVE-LOAD.md) §3 (WorldDoc), [HELP-SYSTEM.md](HELP-SYSTEM.md) §3.3 (gesture glyphs) and §9 (event bus), [AUDIO-MIX.md](AUDIO-MIX.md) (focus/duck), [AVATAR.md](AVATAR.md) §4 (gravity bodies)
+Status: first cut implemented (P0–P4 in compact form: `src/modes/`, `render/heart.ts`, `ui/puzzles.ts`, `puzzles/*.json`; open with the HUD puzzle button or `?puzzle=first-light`). Not yet: hint steps 2–3, pinned-metal look for locked handles, finale duck, "Keep this world", rooms, scenario tests in the Rust harness. Nightfall's Voice B is a Pendulum Clock, not a Spire, because the built-in Spire ignores pattern degrees · Oct 2026 · builds on [SAVE-LOAD.md](SAVE-LOAD.md) §3 (WorldDoc), [HELP-SYSTEM.md](HELP-SYSTEM.md) §3.3 (gesture glyphs) and §9 (event bus), [AUDIO-MIX.md](AUDIO-MIX.md) (focus/duck), [AVATAR.md](AVATAR.md) §4 (gravity bodies)
 
 ---
 

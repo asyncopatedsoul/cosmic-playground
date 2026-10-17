@@ -1,0 +1,47 @@
+{
+  "format": "cosmic-scenario",
+  "version": 1,
+  "id": "puzzle-tide-clock",
+  "series": "puzzle-dawn",
+  "order": 2,
+  "name": "Tide Clock",
+  "icon": "<svg viewBox=\"0 0 48 48\"><circle cx=\"24\" cy=\"22\" r=\"4\" fill=\"currentColor\"/><circle cx=\"24\" cy=\"22\" r=\"10\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"none\"/><circle cx=\"24\" cy=\"22\" r=\"17\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"none\" opacity=\".7\"/><circle cx=\"34\" cy=\"22\" r=\"3\" fill=\"currentColor\"/><circle cx=\"24\" cy=\"5\" r=\"3\" fill=\"currentColor\"/><path d=\"M4 44c5-4 9 4 14 0s9 4 14 0 9 4 14 0\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"none\"/></svg>",
+  "world": {
+    "bpm": 90,
+    "tuning": { "root": 57, "scale": 1 },
+    "toys": [
+      { "id": "t_tide", "entry": "pendulum-clock", "pos": [-3.2, 0, 0.6], "pattern": "x . x . x . x .", "pulse": { "enabled": true, "steps": 8, "stepsPerBeat": 2 } },
+      { "id": "t_moons", "entry": "orrery", "pos": [3.6, 0, -0.6], "params": { "p0": 1.3, "p1": 0.45, "p2": 0, "p3": 0, "speed": 1 } },
+      { "id": "t_shell", "entry": "singing-bowl", "pos": [-1.2, 0, 3.0], "reveal": "outer", "params": { "rim": 0.0986 }, "pattern": "",
+        "pulse": { "enabled": true, "steps": 8, "stepsPerBeat": 2, "prob": [1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0] } }
+    ]
+  },
+  "rules": {
+    "world": { "tempo": "lock", "tuning": "lock", "chest": [] },
+    "toys": {
+      "t_tide": { "all": "lock", "move": true },
+      "t_moons": { "all": "lock", "params": { "p0": { "range": [0.4, 2.0] }, "p1": { "range": [0.4, 2.0] } }, "move": true },
+      "t_shell": { "all": "lock", "pulse": "ring", "move": true }
+    }
+  },
+  "goals": [
+    { "id": "inner", "kind": "ratio", "toy": "t_moons", "planet": 0, "beats": 2, "label": "The first moon goes round every two beats" },
+    { "id": "outer", "kind": "ratio", "toy": "t_moons", "planets": [1, 0], "ratio": [3, 2], "label": "The second moon makes two turns while the first makes three" },
+    { "id": "petals", "kind": "rhythm", "toy": "t_shell", "hits": [3, 5], "steps": 8, "after": "outer", "label": "Three bowl strikes spread evenly over the ring" },
+    { "id": "cinquillo", "kind": "rhythm", "toy": "t_shell", "hits": [5], "steps": 8, "optional": true, "after": "outer", "label": "Five strikes spread evenly: the cinquillo" }
+  ],
+  "heart": { "pos": [0, 0, 0], "radius": 0.9 },
+  "finale": {
+    "freeAt": 8,
+    "layers": [
+      { "at": 0, "fade": 4, "add": { "entry": "spark-box", "params": { "pitch": 220, "zing": 0 }, "pattern": "0 . . 3 . . 4 . . 2 . .", "pulse": { "enabled": true, "steps": 12, "stepsPerBeat": 2 }, "volume": 0.55 } },
+      { "at": 4, "fade": 4, "add": { "entry": "kettle", "volume": 0.6 } },
+      { "at": 16, "fade": 4, "toy": "t_tide", "volume": 0 }
+    ]
+  },
+  "hints": { "after": [45, 90, 150] },
+  "solutions": [
+    { "params": { "t_moons": { "p0": 0.63, "p1": 0.825 } }, "pulse": { "t_shell": { "prob": [1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0] } } },
+    { "params": { "t_moons": { "p0": 0.63, "p1": 0.825 } }, "pulse": { "t_shell": { "prob": [1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0] } } }
+  ]
+}

@@ -7,6 +7,7 @@ import type { Stage } from "./render/stage";
 import { planeBody, type GravityBody } from "./avatar/gravity";
 import { toyEntry } from "./toys/registry";
 import { SnapView, type PulseState, type Toy } from "./toys/toy";
+import { sandbox, type Mode } from "./modes/mode";
 
 /** What changed on a toy, for the multiplayer binding. */
 export type ToyEdit = "pos" | "params" | "pulse" | "pattern" | "volume" | "wild";
@@ -43,6 +44,8 @@ export class World {
   readonly mix: MixState;
   /** Gravity bodies (docs/AVATAR.md §4); V1 has only the ground. */
   readonly bodies: GravityBody[] = [planeBody()];
+  /** Called after every tempo or Tuning change, local, remote or scripted (the HUD redraws). */
+  onWorld: (() => void) | null = null;
   /** Called when toys are added or removed. */
   onChange: (() => void) | null = null;
   /** Local edits, for the room binding. Not called while `applying` remote changes. */
@@ -57,6 +60,10 @@ export class World {
   applying = false;
   /** Whether this player may add, remove, move and retune toys (a locked room, MULTIPLAYER.md §12). */
   canEdit = () => true;
+  /** The rules of play (MODES.md §3.1): sandbox allows everything; a puzzle locks some edits. */
+  mode: Mode = sandbox;
+  /** Spots toys must not be placed on (the Heart), by id. Local and derived, never shared. */
+  private reserved = new Map<string, { pos: THREE.Vector3; radius: number }>();
 
   constructor(
     readonly stage: Stage,
@@ -81,7 +88,7 @@ export class World {
 
   /** Place a toy from the registry by id (see toys/registry.ts). */
   add(id: string, position?: THREE.Vector3, toyId?: string): Toy | null {
-    if (!this.applying && !this.canEdit()) return null;
+    if (!this.applying && (!this.canEdit() || !this.mode.allowAdd(id))) return null;
     const slot = this.toys.indexOf(null);
     const entry = toyEntry(id);
     if (slot < 0 || !entry) return null;
@@ -98,7 +105,7 @@ export class World {
   }
 
   remove(toy: Toy) {
-    if (!this.applying && !this.canEdit()) return;
+    if (!this.applying && (!this.canEdit() || !this.mode.allowRemove(toy))) return toy.refuse();
     this.audio.send({ t: "remove", slot: toy.slot });
     toy.dispose();
     this.toys[toy.slot] = null;
@@ -168,7 +175,21 @@ export class World {
     const squeeze = Math.min(1, this.stage.camera.aspect);
     const cost = (p: THREE.Vector3) => (p.x / squeeze) ** 2 + p.z ** 2;
     spots.sort((a, b) => cost(a) - cost(b));
-    return spots.find((p) => taken.every((q) => q.distanceTo(p) > 3)) ?? new THREE.Vector3(0, 0, -5);
+    const clear = (p: THREE.Vector3) => [...this.reserved.values()].every((r) => r.pos.distanceTo(p) > r.radius + 1.5);
+    const spot = spots.find((p) => clear(p) && taken.every((q) => q.distanceTo(p) > 3));
+    if (spot) return spot;
+    const fallback = new THREE.Vector3(0, 0, -5);
+    while (!clear(fallback)) fallback.z -= 1;
+    return fallback;
+  }
+
+  /** Keep toys from being placed within `radius` of `pos` (MODES.md §5.1). */
+  reserve(id: string, pos: THREE.Vector3, radius: number) {
+    this.reserved.set(id, { pos: pos.clone(), radius });
+  }
+
+  release(id: string) {
+    this.reserved.delete(id);
   }
 
   pickables(): THREE.Object3D[] {
@@ -176,19 +197,21 @@ export class World {
   }
 
   setTempo(bpm: number) {
-    if (!this.applying && !this.canEdit()) return;
+    if (!this.applying && (!this.canEdit() || !this.mode.allowWorld("tempo"))) return;
     this.bpm = Math.round(THREE.MathUtils.clamp(bpm, 40, 180));
     this.audio.send({ t: "tempo", bpm: this.bpm });
     if (!this.applying) for (const l of this.listeners) l.world?.("tempo");
+    this.onWorld?.();
   }
 
   setTuning(t: Partial<WorldTuning>) {
-    if (!this.applying && !this.canEdit()) return;
+    if (!this.applying && (!this.canEdit() || !this.mode.allowWorld("tuning"))) return;
     Object.assign(this.tuning, t);
     if (this.tuning.scale !== SCALE_CUSTOM) this.tuning.custom = undefined;
     const { root, scale, wild } = this.tuning;
     this.audio.send({ t: "tuning", root, scale, wild });
     if (!this.applying) for (const l of this.listeners) l.world?.("tuning");
+    this.onWorld?.();
   }
 
   /** Any tuning as cents within a period (n-EDO, a Tonal scale, ...). */
@@ -217,5 +240,6 @@ export class World {
     for (const toy of this.toys) {
       if (toy) toy.update(dt, data ? new SnapView(data, toy.slot, dtBeats) : null, t);
     }
+    this.mode.update(dt);
   }
 }

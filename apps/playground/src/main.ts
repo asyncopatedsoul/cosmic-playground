@@ -20,6 +20,7 @@ import { Hud } from "./ui/hud";
 import { ListenSheet } from "./ui/listen";
 import { ModeSwitch } from "./ui/modes";
 import { PlacePicker } from "./ui/place-picker";
+import { PuzzleShelf } from "./ui/puzzles";
 import { RoomSheet } from "./ui/room";
 import { PulseEditor } from "./ui/pulse-editor";
 import { SoundBadge } from "./ui/sound-badge";
@@ -64,6 +65,15 @@ world.add("spire", portrait ? new THREE.Vector3(-0.4, 0, 2.2) : new THREE.Vector
 world.add("orrery", portrait ? new THREE.Vector3(0.2, 0, -1.6) : new THREE.Vector3(2.3, 0, -0.6));
 chest.toggle(true);
 
+// Puzzles (docs/MODES.md): the shelf on the HUD, or open one directly with ?puzzle=first-light.
+const devBuild = import.meta.env.DEV || params.has("dev") || params.has("test");
+const puzzles = new PuzzleShelf(document.getElementById("hud")!, world, devBuild);
+puzzles.onChange = (mode) => {
+  chest.render();
+  if (mode) chest.toggle(false);
+};
+if (params.get("puzzle")) puzzles.open(params.get("puzzle")!);
+
 // Toys sent from the Toy Forge (forge.html, same origin) join the chest and the world.
 new BroadcastChannel("hypertoys-forge").onmessage = (ev: MessageEvent<{ t: "toy"; config: ToyConfig }>) => {
   if (ev.data?.t !== "toy") return;
@@ -87,10 +97,12 @@ stage.renderer.setAnimationLoop(() => {
 });
 
 if (fakePads) {
-  const cosmic = { world, audio, stage, fields, aim, avatar, hotbar, room, seats, gamepads, pads: fakePads, test: {} as Record<string, unknown> };
+  const cosmic = { world, audio, puzzles, stage, fields, aim, avatar, hotbar, room, seats, gamepads, pads: fakePads, test: {} as Record<string, unknown> };
   Object.assign(window, { cosmic });
   // The L1 exit check (docs/PLAYTESTS.md): `cosmic.test.seats()`, or open with ?scenario=seats.
   const seatsScenario = () => import("./dev/seats-scenario").then((m) => m.runSeatsScenario({ aim, world, stage, seats, gamepads, pads: fakePads, input }));
   cosmic.test.seats = seatsScenario;
   if (params.get("scenario") === "seats") seatsScenario();
+  // `cosmic.test.solve()` applies the open puzzle's first listed solution (docs/MODES.md §10).
+  cosmic.test.solve = (which = 0) => puzzles.mode?.solve(which);
 }

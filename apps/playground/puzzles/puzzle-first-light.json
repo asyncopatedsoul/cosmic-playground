@@ -1,0 +1,54 @@
+{
+  "format": "cosmic-scenario",
+  "version": 1,
+  "id": "puzzle-first-light",
+  "series": "puzzle-dawn",
+  "order": 1,
+  "name": "First Light",
+  "icon": "<svg viewBox=\"0 0 48 48\"><circle cx=\"24\" cy=\"30\" r=\"7\" fill=\"currentColor\"/><path d=\"M6 30h6M36 30h6M24 12v6M11 17l4 4M37 17l-4 4\" stroke=\"currentColor\" stroke-width=\"3\" stroke-linecap=\"round\"/><path d=\"M4 40h40\" stroke=\"currentColor\" stroke-width=\"2\" opacity=\".6\"/></svg>",
+  "world": {
+    "bpm": 72,
+    "tuning": { "root": 60, "scale": 2 },
+    "toys": [
+      { "id": "t_drone", "entry": "spire", "pos": [-3.2, 0, 0.4], "params": { "length": 1.6, "tension": 0.5, "harmonic": 1 },
+        "pulse": { "enabled": true, "steps": 8, "stepsPerBeat": 2, "prob": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] } },
+      { "id": "t_echo", "entry": "spire", "pos": [-1.6, 0, 2.8], "params": { "length": 1.3, "tension": 0.5, "harmonic": 1 },
+        "pulse": { "enabled": true, "steps": 8, "stepsPerBeat": 2, "prob": [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] } },
+      { "id": "t_glint", "entry": "spire", "pos": [1.6, 0, 2.8], "params": { "length": 1.6, "tension": 0.5, "harmonic": 2 }, "reveal": "core",
+        "pulse": { "enabled": true, "steps": 8, "stepsPerBeat": 2, "prob": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] } },
+      { "id": "t_halo", "entry": "spire", "pos": [3.2, 0, 0.4], "params": { "length": 1.6, "tension": 0.5, "harmonic": 7 }, "reveal": "ring",
+        "pulse": { "enabled": true, "steps": 8, "stepsPerBeat": 2, "prob": [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0] } }
+    ]
+  },
+  "rules": {
+    "world": { "tempo": "lock", "tuning": "lock", "chest": [] },
+    "toys": {
+      "t_drone": { "all": "lock", "move": true },
+      "t_echo": { "all": "lock", "params": { "length": { "range": [0.4, 2.0] } }, "move": true },
+      "t_glint": { "all": "lock", "params": { "harmonic": "free" }, "move": true },
+      "t_halo": { "all": "lock", "params": { "harmonic": "free" }, "move": true }
+    }
+  },
+  "allowedPcs": [0, 2, 3],
+  "goals": [
+    { "id": "core", "kind": "pitch", "toy": "t_echo", "pc": 0, "label": "Echo sings the drone's note, in any octave" },
+    { "id": "ring", "kind": "interval", "toy": "t_glint", "to": "t_drone", "steps": [3], "after": "core", "label": "Glint sounds a fifth above the drone" },
+    { "id": "facets", "kind": "chord", "toys": ["t_drone", "t_glint", "t_halo"], "pcs": [0, 2, 3], "after": "ring", "label": "Drone, Glint and Halo make a major chord" },
+    { "id": "moon", "kind": "interval", "toy": "t_halo", "to": "t_drone", "cents": [954, 984], "optional": true, "afterBloom": true, "label": "Halo finds the blue seventh between the notes" }
+  ],
+  "heart": { "pos": [0, 0, 0], "radius": 0.9 },
+  "finale": {
+    "tempo": { "to": 64, "over": 8 },
+    "freeAt": 8,
+    "layers": [
+      { "at": 0, "fade": 8, "add": { "entry": "singing-bowl", "params": { "rim": 0.0986 }, "pattern": "0 . . 2 . . 3 .", "pulse": { "enabled": true, "steps": 16, "stepsPerBeat": 2 } } },
+      { "at": 8, "fade": 4, "add": { "entry": "bottle-organ", "params": { "fill": 0.3, "neck": 8 }, "pattern": "0 . . . . . . . . . . . . . . .", "pulse": { "enabled": true, "steps": 16, "stepsPerBeat": 2 }, "volume": 0.6 } }
+    ],
+    "then": { "toys": { "t_halo": { "wild": true } } }
+  },
+  "hints": { "after": [45, 90, 150] },
+  "solutions": [
+    { "params": { "t_echo": { "length": 0.8 }, "t_glint": { "harmonic": 3 }, "t_halo": { "harmonic": 5 } } },
+    { "params": { "t_echo": { "length": 1.6 }, "t_glint": { "harmonic": 6 }, "t_halo": { "harmonic": 5 } } }
+  ]
+}

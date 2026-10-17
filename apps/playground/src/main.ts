@@ -3,17 +3,23 @@ import { Fields } from "./audio/fields";
 import { AudioHost } from "./audio/host";
 import { Aim } from "./aim";
 import { Avatar } from "./avatar/avatar";
+import { FakeGamepadSource } from "./controllers/fake-gamepad";
+import { Gamepads } from "./controllers/gamepad";
+import { MergedSource, NavigatorGamepads, type GamepadSource } from "./controllers/source";
 import { Input } from "./input";
 import type { ToyConfig } from "./audio/config";
 import { AimPreview } from "./render/aim-preview";
 import { PlacementGhost } from "./render/ghost";
+import { SeatCursors } from "./render/seat-cursors";
 import { Stage } from "./render/stage";
+import { Seats } from "./seats/seats";
 import { configEntry, registerToy } from "./toys/registry";
 import { Chest } from "./ui/chest";
 import { Hotbar } from "./ui/hotbar";
 import { Hud } from "./ui/hud";
 import { ListenSheet } from "./ui/listen";
 import { ModeSwitch } from "./ui/modes";
+import { PlacePicker } from "./ui/place-picker";
 import { RoomSheet } from "./ui/room";
 import { PulseEditor } from "./ui/pulse-editor";
 import { SoundBadge } from "./ui/sound-badge";
@@ -39,7 +45,16 @@ const hotbar = new Hotbar();
 avatar.onEnter = () => chest.toggle(false);
 const ghost = new PlacementGhost(stage.scene);
 const room = new RoomSheet(document.getElementById("hud")!, world, stage, avatar, aim);
-const input = new Input({ stage, world, editor, chest, audio, aim, preview, avatar, hotbar, ghost, modes, listen, badge });
+const seats = new Seats();
+const input = new Input({ stage, world, editor, chest, audio, aim, preview, avatar, hotbar, ghost, modes, listen, badge, seats });
+
+// Gamepad seats (docs/PLAYTESTS.md §3). In dev, scripted pads join the real ones (`cosmic.pads`).
+const params = new URLSearchParams(location.search);
+const fakePads = import.meta.env.DEV || params.has("dev") || params.has("test") ? new FakeGamepadSource() : null;
+const padSource: GamepadSource = fakePads ? new MergedSource([new NavigatorGamepads(), fakePads]) : new NavigatorGamepads();
+const picker = new PlacePicker(world);
+const cursors = new SeatCursors(stage, seats);
+const gamepads = new Gamepads({ stage, world, editor, aim, audio, seats, picker, cursors }, padSource);
 
 // Start with a string to pluck and an orrery already turning, so the first
 // touch makes sound and the world is playing on its own right away.
@@ -63,10 +78,18 @@ const clock = new THREE.Clock();
 stage.renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.1);
   input.update(dt);
+  gamepads.update(dt);
   room.update(dt);
   world.update(dt, clock.elapsedTime);
   editor.update();
   stage.render();
 });
 
-if (import.meta.env.DEV) Object.assign(window, { cosmic: { world, audio, stage, fields, aim, avatar, hotbar, room } });
+if (fakePads) {
+  const cosmic = { world, audio, stage, fields, aim, avatar, hotbar, room, seats, gamepads, pads: fakePads, test: {} as Record<string, unknown> };
+  Object.assign(window, { cosmic });
+  // The L1 exit check (docs/PLAYTESTS.md): `cosmic.test.seats()`, or open with ?scenario=seats.
+  const seatsScenario = () => import("./dev/seats-scenario").then((m) => m.runSeatsScenario({ aim, world, stage, seats, gamepads, pads: fakePads, input }));
+  cosmic.test.seats = seatsScenario;
+  if (params.get("scenario") === "seats") seatsScenario();
+}

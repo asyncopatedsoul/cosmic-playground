@@ -55,6 +55,34 @@ export class Aim {
     return this.fromRay(this.raycaster.ray);
   }
 
+  /**
+   * Aim from a screen point for a seat that isn't the pointer (a gamepad
+   * cursor): no side effects on `current` or `ignore`, and no reach limit,
+   * since gamepad seats always play in Orbit view.
+   */
+  probe(x: number, y: number, ignore: Toy | null = null): AimHit {
+    return this.probing(ignore, () => this.fromScreen(x, y));
+  }
+
+  /** `probe`, but only walkable surfaces (sliding a toy along the ground). */
+  probeSurface(x: number, y: number, ignore: Toy | null = null): AimHit {
+    return this.probing(ignore, () => this.surfaceFromScreen(x, y));
+  }
+
+  private probing(ignore: Toy | null, f: () => AimHit): AimHit {
+    const { ignore: prevIgnore, reach, reachOrigin } = this;
+    this.ignore = ignore;
+    this.reach = Infinity;
+    this.reachOrigin = null;
+    try {
+      return f();
+    } finally {
+      this.ignore = prevIgnore;
+      this.reach = reach;
+      this.reachOrigin = reachOrigin;
+    }
+  }
+
   fromCrosshair(): AimHit {
     const r = this.stage.canvas.getBoundingClientRect();
     return this.fromScreen(r.left + r.width / 2, r.top + r.height / 2);

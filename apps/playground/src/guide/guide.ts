@@ -2,6 +2,7 @@
 // the things that silently break the app (insecure origin, missing APIs).
 
 import QRCode from "qrcode";
+import { GAMEPAD_MAP } from "../controllers/gamepad-map";
 import "./guide.css";
 
 type Platform = "desktop" | "mobile" | "quest";
@@ -148,4 +149,25 @@ if (isLocal) {
   QRCode.toDataURL(location.href, { margin: 1, width: 296, color: { dark: "#e8e9ffff", light: "#00000000" } })
     .then((url) => (qr.src = url))
     .catch(() => share.remove());
+}
+
+// ---- controllers (generated from the gamepad map, so it can't drift) -----
+
+const padRows = document.querySelector("#pad-controls tbody");
+if (padRows) {
+  for (const b of GAMEPAD_MAP) {
+    const tr = document.createElement("tr");
+    const th = document.createElement("th");
+    th.textContent = b.control;
+    if (b.ps) {
+      const ps = document.createElement("span");
+      ps.className = "ps";
+      ps.textContent = ` [${b.ps}]`;
+      th.append(ps);
+    }
+    const td = document.createElement("td");
+    td.textContent = b.does;
+    tr.append(th, td);
+    padRows.append(tr);
+  }
 }

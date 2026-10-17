@@ -1,11 +1,11 @@
-import * as THREE from "three";
 import type { Aim, AimHit } from "./aim";
 import type { AudioHost } from "./audio/host";
-import { MAX_TOYS } from "./audio/protocol";
 import type { Avatar } from "./avatar/avatar";
 import type { AimPreview } from "./render/aim-preview";
 import type { PlacementGhost } from "./render/ghost";
 import type { Stage } from "./render/stage";
+import { canPlace, dragPart, grab, putAway, release, undoPutAway, type ActionDeps } from "./seats/actions";
+import type { Seats } from "./seats/seats";
 import { toyEntry } from "./toys/registry";
 import type { DragHandler, PointerInfo, Toy } from "./toys/toy";
 import type { Chest } from "./ui/chest";
@@ -16,7 +16,7 @@ import { toggleFocus, toggleMute, toggleSolo } from "./ui/sound";
 import type { SoundBadge } from "./ui/sound-badge";
 import type { ModeSwitch } from "./ui/modes";
 import type { PulseEditor } from "./ui/pulse-editor";
-import type { ToySnapshot, World } from "./world";
+import type { World } from "./world";
 
 /**
  * The intent layer for mouse, touch and keyboard. Raw input becomes
@@ -65,14 +65,14 @@ export interface InputDeps {
   modes: ModeSwitch;
   listen: ListenSheet;
   badge: SoundBadge;
+  /** Seat 1 (the mouse) is `seats.mouse`; gamepad seats share its helpers (seats/actions.ts). */
+  seats: Seats;
 }
 
 /** Holding H longer than this makes focus momentary: it ends on release. */
 const HOLD_MS = 350;
 
 const TAP_SLOP = 7;
-/** Toy bases closer than this overlap (two base radii). */
-const BASE_GAP = 1.25;
 
 export class Input {
   private tracks = new Map<number, Track>();
@@ -82,8 +82,6 @@ export class Input {
   private cursor: { x: number; y: number } | null = null;
   /** The toy being carried with R. */
   private carry: Toy | null = null;
-  /** Put-away toys, for Ctrl+Z. */
-  private putAway: ToySnapshot[] = [];
   /** When H went down on a toy that wasn't focused, for hold-to-focus. */
   private focusHeld: { toy: Toy; at: number } | null = null;
 
@@ -111,6 +109,14 @@ export class Input {
   /** Pointer-locked avatar mode: aim from the crosshair, movement is relative. */
   private get locked() {
     return this.d.avatar.active && this.d.avatar.locked;
+  }
+
+  private get seat() {
+    return this.d.seats.mouse;
+  }
+
+  private get actions(): ActionDeps {
+    return this.d;
   }
 
   private centre() {
@@ -168,6 +174,7 @@ export class Input {
       // Second finger: pinch = stretch, rotate = twist on the first finger's toy (or camera).
       const first = [...this.tracks.values()][0];
       first.handler = null;
+      release(this.seat);
       first.moved = true;
       this.two = { toy: first.toy, distance: Math.hypot(t.x - first.x, t.y - first.y), angle: Math.atan2(t.y - first.y, t.x - first.x) };
       t.moved = true;
@@ -180,36 +187,21 @@ export class Input {
     this.lastToy = toy;
     if (e.altKey || e.button === 2) t.twist = true;
     else if (t.part === "base") t.handler = this.grab(toy);
-    else t.handler = toy.down(t.part, this.info(e, t, x, y));
+    else t.handler = dragPart(this.actions, this.seat, toy, t.part, this.info(e, t, x, y));
   }
 
   /** Grab: drag a toy along the surface under the pointer; dropping it on the chest puts it away. */
   private grab(toy: Toy): DragHandler | null {
-    const { aim, chest, world } = this.d;
-    if (!world.canEdit()) return null;
-    let offset: THREE.Vector3 | null = null;
-    const surface = (x: number, y: number) => {
-      const prev = aim.ignore;
-      aim.ignore = toy;
-      const h = aim.surfaceFromScreen(x, y);
-      aim.ignore = prev;
-      return h.kind === "surface" ? h.point! : null;
-    };
-    return {
-      move: (p) => {
-        const g = surface(p.x, p.y);
-        if (!g) return;
-        offset ??= g.clone().sub(toy.group.position).setY(0);
-        g.sub(offset).setY(0);
-        if (g.length() > 12) g.setLength(12);
-        toy.moveTo(g);
+    const { chest } = this.d;
+    return grab(this.actions, this.seat, toy, {
+      moved: (p) => {
         if (!this.locked) chest.highlightDrop(chest.isOver(p.x, p.y));
       },
-      end: (p) => {
+      ended: (p) => {
         chest.highlightDrop(false);
         if (!this.locked && chest.isOver(p.x, p.y)) this.putAwayToy(toy);
       },
-    };
+    });
   }
 
   private move(e: PointerEvent) {
@@ -288,6 +280,7 @@ export class Input {
   }
 
   private cancel(e: PointerEvent) {
+    if (this.tracks.get(e.pointerId)?.handler) release(this.seat);
     this.tracks.delete(e.pointerId);
     if (this.tracks.size < 2) this.two = null;
     this.d.chest.highlightDrop(false);
@@ -331,28 +324,17 @@ export class Input {
       return;
     }
     const id = this.d.hotbar.current();
-    if (id && hit.kind === "surface" && this.canPlace(hit)) {
+    if (id && hit.kind === "surface" && canPlace(this.d.world, hit)) {
       const toy = this.d.world.add(id, hit.point!.clone());
       if (toy) this.lastToy = toy;
     }
   }
 
-  private canPlace(hit: AimHit): boolean {
-    const { world } = this.d;
-    if (!hit.inReach || !world.canEdit() || world.count >= MAX_TOYS) return false;
-    return world.toys.every((t) => !t || t.group.position.distanceTo(hit.point!) > BASE_GAP);
-  }
-
   private putAwayToy(toy: Toy) {
-    const { editor, world } = this.d;
-    if (!world.canEdit()) return;
-    const snap = world.snapshot(toy);
-    if (editor.toy === toy) editor.close();
+    const carried = this.carry === toy;
+    if (!putAway(this.actions, this.seat, toy)) return;
     if (this.lastToy === toy) this.lastToy = null;
-    if (this.carry === toy) this.drop();
-    world.remove(toy);
-    this.putAway.push(snap);
-    if (this.putAway.length > 20) this.putAway.shift();
+    if (carried) this.drop();
   }
 
   private drop() {
@@ -378,10 +360,9 @@ export class Input {
     }
     const toy = avatar.active ? this.target() : this.lastToy;
     if ((e.ctrlKey || e.metaKey) && e.code === "KeyZ") {
-      const snap = this.putAway.pop();
-      if (snap) {
+      if (this.seat.putAway.length) {
         e.preventDefault();
-        if (!world.restore(snap)) this.putAway.push(snap);
+        undoPutAway(this.actions, this.seat);
       }
       return;
     }
@@ -522,7 +503,7 @@ export class Input {
     }
 
     const id = avatar.active && !this.carry ? hotbar.current() : null;
-    if (id && hit.kind === "surface") ghost.show(hit.point!, hit.normal!, toyEntry(id)!.color, this.canPlace(hit));
+    if (id && hit.kind === "surface") ghost.show(hit.point!, hit.normal!, toyEntry(id)!.color, canPlace(world, hit));
     else ghost.hide();
 
     this.d.badge.update(hit.kind === "part" && hit.inReach ? hit.toy! : null);

@@ -30,7 +30,8 @@ export interface PointerInfo {
   /** Movement since the previous event, in CSS pixels. */
   dx: number;
   dy: number;
-  event: PointerEvent;
+  /** The raw event; absent for gamepad seats, whose drags are synthesised (no toy reads it). */
+  event?: PointerEvent;
   hit: THREE.Intersection | null;
 }
 

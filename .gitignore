@@ -7,3 +7,8 @@ apps/playground/public/modules/
 .DS_Store
 build/
 .env.itch
+
+# Developer mode (docs/DEV-MODE.md)
+devlog/
+test-results/
+apps/playground/dev.config.local.json

@@ -12,6 +12,8 @@ export interface ParamDef {
   default: number;
   step?: number;
   gesture?: Gesture;
+  /** Computed by the toy from its own state, not set by a player (docs/SAVE-LOAD.md §3). */
+  derived?: boolean;
 }
 
 export interface PulseState {

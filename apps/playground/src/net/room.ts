@@ -3,6 +3,7 @@ import * as encoding from "lib0/encoding";
 import * as awarenessProtocol from "y-protocols/awareness";
 import * as syncProtocol from "y-protocols/sync";
 import * as Y from "yjs";
+import { emit } from "../events";
 
 /** Channels on the room socket; mirrors apps/relay/relay.mjs. */
 const CH = { sync: 0, awareness: 1, events: 2, time: 3, control: 4 } as const;
@@ -131,6 +132,9 @@ export class RoomSession {
       encoding.writeVarUint8Array(enc, awarenessProtocol.encodeAwarenessUpdate(this.awareness, [...added, ...updated, ...removed]));
       this.send(encoding.toUint8Array(enc));
     });
+    this.awareness.on("change", ({ added, removed }: Record<string, number[]>) => {
+      if (added.length || removed.length) emit("session.players", { added, removed });
+    });
     addEventListener("pagehide", () => this.leave());
     this.connect();
   }
@@ -207,6 +211,7 @@ export class RoomSession {
         if (type === syncProtocol.messageYjsSyncStep2 && !synced) {
           synced = true;
           this.setStatus("online");
+          emit("session.synced", { code: this.address.code });
           this.onSynced?.();
         }
       } else if (ch === CH.awareness) {
@@ -215,15 +220,18 @@ export class RoomSession {
         this.onEvent?.(JSON.parse(decoding.readVarString(dec)));
       } else if (ch === CH.time) {
         this.rtt = performance.now() - decoding.readFloat64(dec);
+        emit("net.rtt", { ms: Math.round(this.rtt * 10) / 10 });
       } else if (ch === CH.control) {
         const msg = JSON.parse(decoding.readVarString(dec));
         if (msg.t === "welcome" || msg.t === "roles") {
           this.admin = msg.admin;
+          emit("session.admin", { admin: this.admin, me: this.isAdmin });
           this.onStatus?.();
         } else if (msg.t === "error" && msg.code === "locked") {
           this.onReset?.();
         } else if (msg.t === "error") {
           this.error = msg.message;
+          emit("net.error", { message: this.error });
           this.closed = true;
           this.setStatus("error");
         }
@@ -234,18 +242,21 @@ export class RoomSession {
       if (this.closed) return;
       if (!synced) this.failures++;
       this.lastError = `${new Date().toLocaleTimeString()} closed ${ev.code}${ev.reason ? ` (${ev.reason})` : ""}`;
+      emit("net.close", { code: ev.code, reason: ev.reason });
       // Remote players vanish while we're away; they come back with the next awareness sync.
       const others = [...this.awareness.getStates().keys()].filter((id) => id !== this.doc.clientID);
       awarenessProtocol.removeAwarenessStates(this.awareness, others, this);
       // 4xxx: the relay refused us (build mismatch, bad frame); only a rate limit is worth retrying.
       if (ev.code >= 4000 && ev.code !== 4008) {
         this.error ||= ev.reason || "The room refused the connection.";
+        emit("net.error", { message: this.error });
         this.closed = true;
         this.setStatus("error");
         return;
       }
       this.setStatus("connecting");
       const delay = Math.min(10000, 500 * 2 ** this.retry++);
+      emit("net.reconnect", { attempt: this.retry, delayMs: delay });
       setTimeout(() => !this.closed && this.connect(), delay);
     };
   }
@@ -269,6 +280,7 @@ export class RoomSession {
   }
 
   private setStatus(s: RoomStatus) {
+    if (s !== this.status) emit("net.status", { code: this.address.code, status: s });
     this.status = s;
     this.onStatus?.();
   }

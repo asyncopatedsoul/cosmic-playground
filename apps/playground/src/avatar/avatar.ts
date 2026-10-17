@@ -4,6 +4,7 @@ import type { World } from "../world";
 import { AvatarFigure, EYE } from "./figure";
 import type { GravityBody } from "./gravity";
 import { AvatarSettings } from "./settings";
+import { emit } from "../events";
 
 export type AvatarMode = "walk" | "fly";
 
@@ -136,12 +137,14 @@ export class Avatar {
     this.transition = this.stage.reducedMotion ? 1 : 0;
     this.renderChrome();
     this.onEnter?.();
+    emit("player.avatarMode", { mode: this.mode });
     this.onChange?.();
   }
 
   exit() {
     if (!this.active) return;
     this.active = false;
+    emit("player.avatarMode", { mode: "orbit" });
     if (this.locked) document.exitPointerLock();
     this.stage.rig = "orbit";
     this.stage.camera.up.copy(Y);
@@ -155,6 +158,7 @@ export class Avatar {
     if (mode === this.mode) return;
     if (mode === "fly") this.body.up(this.pos, this.flyUp);
     this.mode = mode;
+    emit("player.avatarMode", { mode });
     this.vel.set(0, 0, 0);
     this.onChange?.();
   }

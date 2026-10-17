@@ -2,6 +2,7 @@ import type { AudioHost } from "../audio/host";
 import type { Stage } from "../render/stage";
 import { TOYS } from "../toys/registry";
 import type { World } from "../world";
+import { emit } from "../events";
 
 /**
  * The chest: a drawer of hypertoys along the bottom edge. Tap a toy to place
@@ -92,6 +93,7 @@ export class Chest {
   }
 
   toggle(open = !this.el.classList.contains("open")) {
+    if (open !== this.el.classList.contains("open")) emit("player.chest", { open });
     this.el.classList.toggle("open", open);
   }
 

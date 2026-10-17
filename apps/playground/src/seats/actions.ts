@@ -4,6 +4,7 @@ import { MAX_TOYS } from "../audio/protocol";
 import type { DragHandler, PointerInfo, Toy } from "../toys/toy";
 import type { PulseEditor } from "../ui/pulse-editor";
 import type { World } from "../world";
+import { emit } from "../events";
 import { PUT_AWAY_DEPTH, type SeatState, type Seats } from "./seats";
 
 /**
@@ -42,14 +43,16 @@ export function release(seat: SeatState) {
 }
 
 /** The seat holds `toy` until the drag ends. */
-function hold(seat: SeatState, toy: Toy, h: DragHandler): DragHandler {
+function hold(seat: SeatState, toy: Toy, h: DragHandler, part: string): DragHandler {
   const wrapped: DragHandler = {
     move: (p) => h.move(p),
     end: (p) => {
       if (seat.drag === wrapped) release(seat);
       h.end?.(p);
+      emit("player.drop", { toy: toy.id, seat: seat.number });
     },
   };
+  emit("player.grab", { toy: toy.id, seat: seat.number, part });
   seat.holding = toy;
   seat.drag = wrapped;
   return wrapped;
@@ -79,14 +82,14 @@ export function grab(d: ActionDeps, seat: SeatState, toy: Toy, hooks: GrabHooks 
       hooks.moved?.(p);
     },
     end: (p) => hooks.ended?.(p),
-  });
+  }, "base");
 }
 
 /** Start dragging one of a toy's handles. Null if the part has no drag or another seat holds the toy. */
 export function dragPart(d: ActionDeps, seat: SeatState, toy: Toy, part: string, p: PointerInfo): DragHandler | null {
   if (heldByOther(d.seats, seat, toy)) return null;
   const h = toy.down(part, p);
-  return h ? hold(seat, toy, h) : null;
+  return h ? hold(seat, toy, h, part) : null;
 }
 
 /** Put a toy away onto the seat's own undo stack. False if not allowed. */
@@ -97,6 +100,7 @@ export function putAway(d: ActionDeps, seat: SeatState, toy: Toy): boolean {
   if (editor.toy === toy) editor.close();
   if (seat.holding === toy) release(seat);
   world.remove(toy);
+  emit("player.putAway", { toy: toy.id, seat: seat.number });
   seat.putAway.push(snap);
   if (seat.putAway.length > PUT_AWAY_DEPTH) seat.putAway.shift();
   return true;
@@ -108,5 +112,6 @@ export function undoPutAway(d: ActionDeps, seat: SeatState): Toy | null {
   if (!snap) return null;
   const toy = d.world.restore(snap);
   if (!toy) seat.putAway.push(snap);
+  else emit("player.undo", { toy: toy.id, seat: seat.number });
   return toy;
 }

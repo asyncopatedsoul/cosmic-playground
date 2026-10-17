@@ -121,6 +121,16 @@ Every dev or preview server is also a room relay (`/room/<code>`, [MULTIPLAYER.m
 
 `npm -w apps/relay test` runs the relay's tests.
 
+## Developer mode
+
+The dev server (and `npm run desktop`) runs in developer mode ([DEV-MODE.md](DEV-MODE.md)); a production build does with `?dev`, and CI with `?test`.
+
+- **Starts muted.** Unmute with the HUD speaker or the panel; the choice is remembered for dev mode on this machine. `?test` is always muted. Players are never muted by default.
+- **Panel:** press `` ` `` (backtick). *Settings* (volume, log levels per channel, dock, fps), *Logs* (live, filterable, Copy last 200, Save log as JSONL), *State* (live tree of app, audio, world, toys and room; copy any branch).
+- **Session logs** are written to `devlog/sessions/*.jsonl` (gitignored, newest 50 kept), one file per page load, `app.boot` first. Only requests from this machine are accepted; tunnel and LAN clients log in memory only.
+- **Config:** `apps/playground/dev.config.json` (checked in) < `dev.config.local.json` (yours, gitignored) < panel changes < URL params such as `?dev.log.channels.net=debug`. Bad keys or values show as warnings in the panel.
+- In the console: `cosmic.dev.log.entries()`, `cosmic.dev.log.setLevel("perf", "info")`.
+
 ## Where things live
 
 See the layout section of the [README](../README.md#layout). The engine's param ids and snapshot layout are mirrored between `crates/hypertoy-wasm/src/engine.rs` and `apps/playground/src/audio/protocol.ts`; change both together.

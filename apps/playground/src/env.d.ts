@@ -8,3 +8,9 @@ interface ImportMetaEnv {
   /** The page testers open (the itch page); invites say "Go to <url> and enter code …". */
   readonly VITE_SHARE_URL?: string;
 }
+
+/** Developer config files (docs/DEV-MODE.md §3.2), served by dev-files.ts; null in production builds. */
+declare module "virtual:dev-config" {
+  const files: { file: unknown; local: unknown; error?: string };
+  export default files;
+}

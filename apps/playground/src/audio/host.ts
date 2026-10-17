@@ -1,5 +1,6 @@
 import workletUrl from "./worklet.ts?worker&url";
 import { fetchWasm, type Command, type FromWorklet } from "./protocol";
+import { emit } from "../events";
 
 /**
  * Main-thread side of the audio engine. The world can send commands before
@@ -29,7 +30,10 @@ export class AudioHost {
     const ctx = new AudioContext({ latencyHint: "interactive" });
     this.ctx = ctx;
     void ctx.resume();
-    this.boot(ctx).catch((err) => console.error("audio boot failed", err));
+    this.boot(ctx).catch((err) => {
+      console.error("audio boot failed", err);
+      emit("audio.bootFailed", { message: String(err) });
+    });
   }
 
   private async boot(ctx: AudioContext) {
@@ -53,15 +57,20 @@ export class AudioHost {
         this.ready = true;
         for (const c of this.pending) node.port.postMessage(c);
         this.pending = [];
+        emit("audio.ready", { sampleRate: ctx.sampleRate });
         this.onReady?.();
       } else if (m.t === "loadError") {
         this.onLoadError?.(m.slot, m.what, m.code, m.detail);
       } else {
         console.error("audio engine:", m.message);
+        emit("audio.engineError", { message: m.message });
       }
     };
     // Exceptions inside the worklet's process() only surface here.
-    node.onprocessorerror = (e) => console.error("audio engine crashed:", e);
+    node.onprocessorerror = (e) => {
+      console.error("audio engine crashed:", e);
+      emit("audio.crash", { message: String((e as ErrorEvent).message ?? e) });
+    };
     node.connect(ctx.destination);
     this.node = node;
     node.port.postMessage({ t: "wasm", bytes }, [bytes]);

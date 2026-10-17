@@ -2,6 +2,7 @@ import * as Y from "yjs";
 import type { PulseState, Toy } from "../toys/toy";
 import type { ToyEdit, ToySnapshot, World } from "../world";
 import type { RoomSession } from "./room";
+import { emit } from "../events";
 
 /** Origin of transactions this binding makes, so its own changes aren't applied back. */
 const LOCAL = Symbol("local");
@@ -53,10 +54,13 @@ export class WorldBinding {
         if (e.target === this.toys) for (const k of (e as Y.YMapEvent<unknown>).keysChanged) ids.add(k);
         else ids.add(String(e.path[0]));
       }
+      emit("session.remoteEdit", { toys: [...ids] });
       this.apply(() => ids.forEach((id) => this.reconcile(id)));
     });
-    this.meta.observe((_e, tx) => {
+    this.meta.observe((e, tx) => {
       if (tx.origin === LOCAL) return;
+      emit("session.remoteEdit", { world: [...e.keysChanged] });
+      if (e.keysChanged.has("locked")) emit("session.locked", { locked: this.locked });
       if (!this.started && this.meta.get("init")) {
         this.start();
         return;
@@ -80,6 +84,7 @@ export class WorldBinding {
   setLocked(on: boolean) {
     if (!this.room.isAdmin) return;
     this.write(() => this.meta.set("locked", on));
+    emit("session.locked", { locked: on });
     this.onChange?.();
   }
 

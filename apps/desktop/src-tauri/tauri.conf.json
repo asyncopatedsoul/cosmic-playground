@@ -16,7 +16,8 @@
         "width": 1280,
         "height": 800,
         "minWidth": 480,
-        "minHeight": 360
+        "minHeight": 360,
+        "userAgent": "CosmicPlayground/0.1 (Tauri; WebView)"
       }
     ],
     "security": {

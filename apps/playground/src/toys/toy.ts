@@ -77,6 +77,10 @@ export abstract class Toy {
   /** Set when the engine rejects the pattern: where and why. */
   patternError: string | null = null;
   selected = false;
+  /** Stable id shared across a room (docs/MULTIPLAYER.md §4.2); engine slots stay local. */
+  id = randomId();
+  /** The registry entry this toy was made from (toys/registry.ts). */
+  entryId = "";
 
   protected baseRadius = 0.6;
   protected flash = 0;
@@ -153,15 +157,21 @@ export abstract class Toy {
     return obj;
   }
 
+  /** False when the room is locked and this player isn't an admin: toys can be played, not changed. */
+  protected get editable() {
+    return this.world.applying || this.world.canEdit();
+  }
+
   setParam(name: string, value: number) {
     const d = this.defs[name];
-    if (!d) return;
+    if (!d || !this.editable) return;
     let v = THREE.MathUtils.clamp(value, d.range[0], d.range[1]);
     if (d.step) v = Math.round(v / d.step) * d.step;
     if (v === this.params[name]) return;
     this.params[name] = v;
     this.sendParam(name);
     this.onParam(name);
+    this.world.edited(this, "params");
   }
 
   /** Apply a gesture to whichever param declared it. Returns false if none did. */
@@ -181,18 +191,23 @@ export abstract class Toy {
 
   poke(strength: number) {
     this.world.audio.send({ t: "poke", slot: this.slot, strength, aux: 0 });
+    this.world.poked(this, strength);
   }
 
   setPulse(p: Partial<PulseState>) {
+    if (!this.editable) return;
     Object.assign(this.pulse, p);
     this.sendPulse();
+    this.world.edited(this, "pulse");
   }
 
   /** Script the Pulse with mini-notation, or clear it ("") to go back to the ring. */
   setPattern(text: string) {
+    if (!this.editable) return;
     this.pattern = text.trim();
     this.patternError = null;
     this.world.audio.send({ t: "pattern", slot: this.slot, text: this.pattern });
+    this.world.edited(this, "pattern");
   }
 
   private sendPulse() {
@@ -207,11 +222,14 @@ export abstract class Toy {
   }
 
   moveTo(pos: THREE.Vector3) {
+    if (!this.editable) return;
     this.group.position.copy(pos);
     this.sendPan();
+    this.world.edited(this, "pos");
   }
 
-  private sendPan() {
+  /** Re-pan from the current camera (the avatar's head turns, AVATAR.md §9). */
+  sendPan() {
     // Pan from where the toy sits relative to the camera's left-right axis.
     const camera = this.world.stage.camera;
     camera.updateMatrixWorld();
@@ -223,6 +241,11 @@ export abstract class Toy {
   /** Pointer went down on one of this toy's parts. Return a handler to own the drag. */
   down(_part: string, _p: PointerInfo): DragHandler | null {
     return null;
+  }
+
+  /** What a click on `part` does, for the aim preview's label. */
+  hint(_part: string): string {
+    return "poke";
   }
 
   /** A tap (no drag) on one of this toy's parts. */
@@ -251,6 +274,12 @@ export abstract class Toy {
       }
     });
   }
+}
+
+/** A random 65-bit id in base32. */
+export function randomId(): string {
+  const b = crypto.getRandomValues(new Uint8Array(13));
+  return Array.from(b, (x) => "abcdefghijklmnopqrstuvwxyz234567"[x & 31]).join("");
 }
 
 /** Material for pick targets: raycastable but never drawn. */

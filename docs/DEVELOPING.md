@@ -115,6 +115,12 @@ The desktop crate is a workspace member but not a default member, so `cargo test
 
 **Windows Smart App Control.** With Smart App Control on, Windows may refuse to run freshly compiled, unsigned build-script binaries, and the build fails with `An Application Control policy has blocked this file. (os error 4551)`. Which crate gets blocked is effectively random per build profile (on one machine the debug build passed and the release build stayed blocked on `erased-serde`). Workarounds: build release bundles in CI, or on a machine with Smart App Control off. Turning it off can't be undone without resetting Windows. `npm run desktop` uses `--strictPort` on :5173, so it fails loudly instead of loading a stale server if another Vite is already running there.
 
+## Play together (rooms)
+
+Every dev or preview server is also a room relay (`/room/<code>`, [MULTIPLAYER.md](MULTIPLAYER.md)). Open the HUD's people button → *Host a room*, then open the room link in another tab, on a phone, or through `npm run tunnel` (which prints a fresh room link). The desktop app joins the same way: in `npm run desktop` a code is enough; a release build needs the full link pasted into *Join*, or launched with it: `cosmic-playground-desktop.exe --room "https://<host>/?room=CODE"`. Players must run the same build (git commit + engine hash), or the room refuses them with a message.
+
+`npm -w apps/relay test` runs the relay's tests.
+
 ## Where things live
 
 See the layout section of the [README](../README.md#layout). The engine's param ids and snapshot layout are mirrored between `crates/hypertoy-wasm/src/engine.rs` and `apps/playground/src/audio/protocol.ts`; change both together.

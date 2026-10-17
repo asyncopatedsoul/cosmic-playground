@@ -91,6 +91,10 @@ export class Orrery extends Toy {
     return Math.hypot(g.x - this.group.position.x, g.z - this.group.position.z);
   }
 
+  hint(part: string) {
+    return part === "sun" ? "new planet" : part.startsWith("planet:") ? "drag orbit" : "poke";
+  }
+
   down(part: string, _p: PointerInfo): DragHandler | null {
     if (part.startsWith("planet:")) {
       const i = Number(part.slice(7));

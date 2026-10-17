@@ -4,7 +4,10 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 
-/** The three.js scene, orbit camera and picking helpers. */
+/**
+ * The three.js scene, camera rigs and picking helpers. The orbit rig lives
+ * here; in avatar mode (`rig = "avatar"`) the avatar drives the camera.
+ */
 export class Stage {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
@@ -12,6 +15,8 @@ export class Stage {
   /** Drawing-buffer size in CSS pixels, for fat-line materials. */
   readonly resolution = new THREE.Vector2(1, 1);
   readonly reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  rig: "orbit" | "avatar" = "orbit";
 
   private composer: EffectComposer | null = null;
   private bloom: UnrealBloomPass | null = null;
@@ -104,16 +109,39 @@ export class Stage {
     this.placeCamera();
   }
 
-  private placeCamera() {
+  /** The orbit rig's heading (radians) and target. */
+  get orbitHeading() {
+    return this.azimuth;
+  }
+
+  get orbitTarget(): THREE.Vector3 {
+    return this.target.clone();
+  }
+
+  /** Re-aim the orbit rig (leaving avatar mode puts the target at the avatar). */
+  setOrbit(target: THREE.Vector3, azimuth: number) {
+    this.target.copy(target);
+    this.azimuth = azimuth;
+    this.placeCamera();
+  }
+
+  /** Where the orbit rig would put the camera, without moving it. */
+  orbitPose(): { position: THREE.Vector3; target: THREE.Vector3 } {
     // Portrait screens need to stand further back to fit the same world.
     const d = this.distance / Math.min(1, this.camera.aspect) ** 0.75;
-    const c = this.camera;
-    c.position.set(
+    const position = new THREE.Vector3(
       this.target.x + d * Math.cos(this.elevation) * Math.sin(this.azimuth),
       this.target.y + d * Math.sin(this.elevation),
       this.target.z + d * Math.cos(this.elevation) * Math.cos(this.azimuth),
     );
-    c.lookAt(this.target);
+    return { position, target: this.target.clone() };
+  }
+
+  placeCamera() {
+    if (this.rig !== "orbit") return;
+    const { position, target } = this.orbitPose();
+    this.camera.position.copy(position);
+    this.camera.lookAt(target);
   }
 
   private setRay(x: number, y: number) {

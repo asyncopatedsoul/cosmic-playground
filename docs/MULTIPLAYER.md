@@ -5,7 +5,7 @@
 > tunnel**, with the least infrastructure that can work, and a path to the full Phase "Together"
 > design in [PLAN.md](PLAN.md) §4.6.
 
-Status: plan · **priority 1** · Oct 2026 · builds on [PLAN.md](PLAN.md) §4.6 (multiplayer), [DEVELOPING.md](DEVELOPING.md#share-over-ngrok) (tunnel), [DESKTOP-MIDI.md](DESKTOP-MIDI.md) (Tauri shell) and [SAVE-LOAD.md](SAVE-LOAD.md) (the world document)
+Status: **in progress** (relay, shared world, presence, roles and lock implemented; see §13) · **priority 1** · Oct 2026 · builds on [PLAN.md](PLAN.md) §4.6 (multiplayer), [DEVELOPING.md](DEVELOPING.md#share-over-ngrok) (tunnel), [DESKTOP-MIDI.md](DESKTOP-MIDI.md) (Tauri shell) and [SAVE-LOAD.md](SAVE-LOAD.md) (the world document)
 
 ---
 
@@ -280,12 +280,33 @@ Each run records: time to join, RTT, clock offset jitter, onset spread (§10), C
 
 ---
 
-## 12. Open questions
+## 12. Decisions and open questions
 
-1. Should **toy volume** be shared (part of the composition) or local? This plan says shared, with mute/solo local ([AUDIO-MIX.md](AUDIO-MIX.md) §3).
-2. Should the host be able to **lock the world** (guests can play toys but not add, remove or retune)? Likely yes for classrooms; cheap with the binding.
+**Decided (Oct 2026)**
+
+1. **Toy volume is shared** (part of the composition, in the doc); **mute and solo are local** ([AUDIO-MIX.md](AUDIO-MIX.md) §3).
+2. **An admin role can lock the world.** The **host is the admin by default** (the first member of a room; the relay hands the role to the longest-connected member if the admin leaves). The admin can assign the role to other players later. A **locked** world lets guests play toys (poke, pour) but not add, remove, move or retune them; admins can still edit. The lock is a field in the shared doc (`world.locked`), enforced by every client's binding and by the relay, which drops doc updates from non-admins while the world is locked.
+
+**Still open**
+
 3. Is a **mesh** (WebRTC data channels) worth adding later for LAN latency? Only if M3 measurements over a LAN relay miss the target.
 4. Loro vs Yjs long-term: revisit at M7 if the relay moves to Rust (`yrs` keeps Yjs compatibility there, which may make the question moot).
+
+## 13. Implementation status (Oct 2026)
+
+Built far enough to test avatars together ([AVATAR.md](AVATAR.md) V4) in browser tabs and the desktop app:
+
+| Piece | State | Where |
+|---|---|---|
+| Relay | `roomRelay()` Vite plugin on dev **and** preview servers at `/room/<code>`; y-protocols sync + awareness, event fan-out, time pings, roles, build lock, member/room/message/rate limits, 10-minute idle close; Node tests | `apps/relay/relay.mjs`, `apps/relay/test/` |
+| Client session | Connect, hello with build id, reconnect with backoff, RTT, links/codes (`?room=CODE`, paste a link in the desktop app) | `src/net/room.ts` |
+| Shared world (M2, partial) | Toys (add, remove, move, params, Pulse, pattern) with stable toy ids, tempo, preset Tuning, throttled drag writes, late join, the admin seeds an empty room | `src/net/doc.ts` |
+| Roles and lock (§12) | Host = admin, hand-off ("make admin"), passes on when the admin leaves; *Lock the world* blocks guests' edits in the client and at the relay (a refused client rejoins fresh) | `apps/relay/relay.mjs`, `src/net/doc.ts`, `src/ui/room.ts` |
+| Presence (M4, partial) | Names, colours, mode, avatar pose, aim dots, player list | `src/net/presence.ts`, `src/ui/room.ts` |
+| Pokes | Sent as events and played on arrival (not yet beat-stamped) | `src/net/doc.ts` |
+| Desktop | Dev window joins like a browser; release build joins by pasting a link or launching with `--room <link>`; custom user agent for the ngrok interstitial (not yet checked against ngrok) | `apps/desktop/src-tauri/` |
+
+Not yet: clock sync and `pokeAt`/seed/slot-independent engine changes (M1, M3), so Pulses are not beat-locked across clients; custom tunings, zap recipes and Forge-only toys aren't shared; toy volume waits for the AUDIO-MIX controls; persistence (§7), `--cloudflare`, the desktop host (M6), held-toy rings.
 
 ---
 

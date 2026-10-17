@@ -523,3 +523,384 @@ svg {
 .tunings-msg {
   color: var(--ink);
 }
+
+/* ---- Avatar mode (docs/AVATAR.md) -------------------------------------- */
+
+.hud-modes button {
+  display: grid;
+  place-items: center;
+  color: var(--ink-dim);
+}
+
+.hud-modes button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.hud-modes button.active {
+  color: #8fd3ff;
+  background: rgba(143, 211, 255, 0.14);
+}
+
+.avatar-settings {
+  position: fixed;
+  top: calc(max(10px, env(safe-area-inset-top)) + 56px);
+  right: var(--pad);
+  width: min(280px, calc(100vw - 32px));
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 18px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  backdrop-filter: blur(12px);
+  z-index: 5;
+}
+
+.avatar-settings[hidden] {
+  display: none;
+}
+
+.avatar-settings label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.avatar-settings input[type="range"] {
+  flex: 1;
+  accent-color: #8fd3ff;
+}
+
+.avatar-settings output {
+  min-width: 52px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-dim);
+}
+
+.avatar-settings .sizes {
+  display: flex;
+  gap: 6px;
+}
+
+.avatar-settings .sizes button {
+  flex: 1;
+  height: 30px;
+  border-radius: 10px;
+  border: 1px solid var(--panel-edge);
+}
+
+.avatar-settings .sizes button.active {
+  border-color: #8fd3ff;
+  color: #8fd3ff;
+}
+
+.lock-pill,
+.crosshair,
+.aim-label,
+.avatar-fade {
+  position: fixed;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.lock-pill {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  padding: 10px 18px;
+  border-radius: 20px;
+  background: var(--panel);
+  border: 1px solid #8fd3ff66;
+}
+
+.crosshair {
+  left: 50%;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  background:
+    linear-gradient(#fff, #fff) center / 2px 100% no-repeat,
+    linear-gradient(#fff, #fff) center / 100% 2px no-repeat;
+  mix-blend-mode: difference;
+}
+
+.aim-label {
+  left: 0;
+  top: 0;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  background: rgba(8, 10, 26, 0.75);
+  color: #cfe9ff;
+  white-space: nowrap;
+}
+
+.avatar-fade {
+  inset: 0;
+  background: var(--bg);
+  transition: opacity 0.15s;
+}
+
+.lock-pill.on,
+.crosshair.on,
+.aim-label.on,
+.avatar-fade.on {
+  opacity: 1;
+}
+
+#hotbar {
+  position: fixed;
+  left: 50%;
+  bottom: calc(max(10px, env(safe-area-inset-bottom)) + 52px);
+  transform: translateX(-50%);
+  display: none;
+  gap: 4px;
+  padding: 5px;
+  border-radius: 14px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  max-width: calc(100vw - 16px);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+body.avatar-mode #hotbar {
+  display: flex;
+}
+
+.hotbar-slot {
+  position: relative;
+  flex: none;
+  width: min(44px, calc((100vw - 64px) / 9));
+  height: min(44px, calc((100vw - 64px) / 9));
+  padding: 0;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  color: var(--toy, var(--ink-dim));
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.hotbar-slot svg {
+  width: 64%;
+  height: 64%;
+}
+
+.hotbar-slot kbd {
+  position: absolute;
+  left: 4px;
+  top: 2px;
+  font: 10px ui-monospace, monospace;
+  color: var(--ink-dim);
+}
+
+.hotbar-slot.on {
+  border-color: #fff;
+  box-shadow: 0 0 10px #ffffff55;
+}
+
+/* Avatar mode opens the chest less often; keep the toy area clear. */
+body.avatar-mode #wake {
+  display: none;
+}
+
+/* ---- Rooms (docs/MULTIPLAYER.md) ---------------------------------------- */
+
+.hud-room {
+  gap: 4px;
+  color: var(--ink-dim);
+}
+
+.hud-room svg {
+  width: 20px;
+  height: 20px;
+}
+
+.hud-room.active {
+  color: #7cf7a0;
+  border-color: #7cf7a066;
+}
+
+.hud-room b {
+  font-size: 13px;
+}
+
+#room {
+  position: fixed;
+  top: calc(max(10px, env(safe-area-inset-top)) + 56px);
+  right: var(--pad);
+  width: min(320px, calc(100vw - 32px));
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 18px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  backdrop-filter: blur(12px);
+  z-index: 6;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+#room[hidden] {
+  display: none;
+}
+
+#room header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#room h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+#room header button {
+  font-size: 22px;
+  width: 30px;
+}
+
+#room input:not([type="checkbox"]) {
+  min-width: 0;
+  flex: 1;
+  font: inherit;
+  color: inherit;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--panel-edge);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+#room button:not(.room-colors button) {
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--panel-edge);
+}
+
+.room-primary {
+  background: #7cf7a022;
+  border-color: #7cf7a088 !important;
+}
+
+.room-join,
+.room-link {
+  display: flex;
+  gap: 6px;
+}
+
+.room-code {
+  font: 600 34px/1 ui-monospace, monospace;
+  letter-spacing: 0.18em;
+  text-align: center;
+}
+
+.room-qr {
+  justify-self: center;
+  border-radius: 8px;
+}
+
+.room-status {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ink-dim);
+  text-align: center;
+}
+
+.room-status.error {
+  color: #ff8a8a;
+}
+
+.room-me {
+  display: grid;
+  gap: 6px;
+}
+
+.room-colors {
+  display: flex;
+  gap: 6px;
+}
+
+.room-colors button {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--player);
+  border: 2px solid transparent;
+}
+
+.room-colors button.on {
+  border-color: #fff;
+}
+
+.room-players {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.room-players li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.room-players i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--player);
+}
+
+.room-players em {
+  margin-left: auto;
+  font-size: 11px;
+  font-style: normal;
+  color: #ffd36e;
+}
+
+.room-players li button {
+  margin-left: auto;
+  font-size: 11px;
+  padding: 2px 8px !important;
+}
+
+.room-note,
+.room-lock {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-dim);
+}
+
+.player-tag {
+  position: fixed;
+  left: 0;
+  top: 0;
+  padding: 1px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  background: rgba(8, 10, 26, 0.7);
+  border: 1px solid var(--player);
+  pointer-events: none;
+  opacity: 0;
+  white-space: nowrap;
+}
+
+.player-tag.on {
+  opacity: 1;
+}
+
+body.world-locked .hud-room::after {
+  content: "🔒";
+  font-size: 12px;
+}

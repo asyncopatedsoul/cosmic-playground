@@ -8,6 +8,7 @@
 // Env: NGROK_URL=my-name.ngrok-free.app reserves a stable hostname.
 
 import { execFileSync, spawn } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline";
@@ -67,12 +68,17 @@ createInterface({ input: ngrok.stdout }).on("line", async (line) => {
   if (entry.msg !== "started tunnel" || !entry.url) return;
 
   const guide = `${entry.url}/guide.html`;
+  // A fresh room on the same server (the relay rides on the Vite server, docs/MULTIPLAYER.md §3.2).
+  const alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  const code = Array.from(randomBytes(6), (b) => alphabet[b % alphabet.length]).join("");
+  const room = `${entry.url}/?room=${code}`;
   const qr = await QRCode.toString(guide, { type: "terminal", small: true });
   console.log(`
   Cosmic Playground is public (${build ? "production build" : "dev server"}):
 
     Start here:  ${guide}
     App:         ${entry.url}/
+    Room:        ${room}   (send this to friends; the desktop app can paste it into Play together → Join)
     Inspector:   http://127.0.0.1:4040
 
   Scan to open the guide on a phone (on a Quest 3, type the URL and bookmark it):

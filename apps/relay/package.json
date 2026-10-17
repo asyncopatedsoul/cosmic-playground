@@ -1,0 +1,17 @@
+{
+  "name": "@hypertoys/relay",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MPL-2.0",
+  "main": "relay.mjs",
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "lib0": "^0.2.119",
+    "ws": "^8.22.0",
+    "y-protocols": "^1.0.7",
+    "yjs": "^13.6.33"
+  }
+}

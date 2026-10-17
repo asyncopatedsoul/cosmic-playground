@@ -1,12 +1,19 @@
 import * as THREE from "three";
 import { Fields } from "./audio/fields";
 import { AudioHost } from "./audio/host";
+import { Aim } from "./aim";
+import { Avatar } from "./avatar/avatar";
 import { Input } from "./input";
 import type { ToyConfig } from "./audio/config";
+import { AimPreview } from "./render/aim-preview";
+import { PlacementGhost } from "./render/ghost";
 import { Stage } from "./render/stage";
 import { configEntry, registerToy } from "./toys/registry";
 import { Chest } from "./ui/chest";
+import { Hotbar } from "./ui/hotbar";
 import { Hud } from "./ui/hud";
+import { ModeSwitch } from "./ui/modes";
+import { RoomSheet } from "./ui/room";
 import { PulseEditor } from "./ui/pulse-editor";
 import { World } from "./world";
 import "./style.css";
@@ -18,7 +25,15 @@ const world = new World(stage, audio, fields);
 const editor = new PulseEditor(world);
 const chest = new Chest(world, stage, audio);
 new Hud(world, audio);
-new Input(stage, world, editor, chest, audio);
+const aim = new Aim(stage, world);
+const preview = new AimPreview(stage);
+const avatar = new Avatar(stage, world, "#8fd3ff");
+const modes = new ModeSwitch(document.getElementById("hud")!, avatar, preview);
+const hotbar = new Hotbar();
+avatar.onEnter = () => chest.toggle(false);
+const ghost = new PlacementGhost(stage.scene);
+const room = new RoomSheet(document.getElementById("hud")!, world, stage, avatar, aim);
+const input = new Input({ stage, world, editor, chest, audio, aim, preview, avatar, hotbar, ghost, modes });
 
 // Start with a string to pluck and an orrery already turning, so the first
 // touch makes sound and the world is playing on its own right away.
@@ -41,9 +56,11 @@ audio.onReady = () => wake.classList.add("gone");
 const clock = new THREE.Clock();
 stage.renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.1);
+  input.update(dt);
+  room.update(dt);
   world.update(dt, clock.elapsedTime);
   editor.update();
   stage.render();
 });
 
-if (import.meta.env.DEV) Object.assign(window, { cosmic: { world, audio, stage, fields } });
+if (import.meta.env.DEV) Object.assign(window, { cosmic: { world, audio, stage, fields, aim, avatar, hotbar, room } });

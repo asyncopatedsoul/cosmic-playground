@@ -178,6 +178,10 @@ export class ConfigToy extends Toy {
     this.layout();
   }
 
+  hint(part: string) {
+    return part === "body" ? "poke · drag" : "poke";
+  }
+
   down(part: string, _p: PointerInfo): DragHandler | null {
     if (part !== "body") return null;
     return {

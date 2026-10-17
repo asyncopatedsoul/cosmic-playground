@@ -9,7 +9,7 @@
     "build:wasm": "node scripts/build-wasm.mjs",
     "dev": "npm run build:wasm && npm -w apps/playground run dev",
     "build": "npm run build:wasm && npm -w apps/playground run build",
-    "test": "PATH=\"$HOME/.cargo/bin:$PATH\" cargo test && npm -w apps/playground run typecheck",
+    "test": "PATH=\"$HOME/.cargo/bin:$PATH\" cargo test && npm -w apps/playground run typecheck && npm -w apps/relay test",
     "tunnel": "node scripts/tunnel.mjs",
     "desktop": "npm -w apps/desktop run dev",
     "desktop:build": "npm -w apps/desktop run build",

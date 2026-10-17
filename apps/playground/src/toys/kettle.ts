@@ -130,6 +130,10 @@ export class Kettle extends Toy {
     this.world.fields.drop(this.slot, hit.uv.x, hit.uv.y, r);
   }
 
+  hint(part: string) {
+    return part === "rim" ? "turn" : part === "surface" ? "pour" : "poke";
+  }
+
   down(part: string, _p: PointerInfo): DragHandler | null {
     if (part === "rim") return { move: (q) => this.nudge("twist", q.dx * 0.003) };
     if (part === "surface") {

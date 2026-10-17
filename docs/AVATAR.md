@@ -6,7 +6,7 @@
 > under the **crosshair**, and a toggle draws the **ray and hit point** so players can see exactly
 > what they're aiming at.
 
-Status: plan · Oct 2026 · builds on [PLAN.md](PLAN.md) §3 (intent layer, views) · interacts with [MULTIPLAYER.md](MULTIPLAYER.md) §4.1 (presence), [SAVE-LOAD.md](SAVE-LOAD.md) §3 (orientation, bodies) and [AUDIO-MIX.md](AUDIO-MIX.md) §3 (listener)
+Status: **V0 and V1 implemented** (Oct 2026), V4 presence over the room relay; V2, V3, V5 planned (see §14) · builds on [PLAN.md](PLAN.md) §3 (intent layer, views) · interacts with [MULTIPLAYER.md](MULTIPLAYER.md) §4.1 (presence), [SAVE-LOAD.md](SAVE-LOAD.md) §3 (orientation, bodies) and [AUDIO-MIX.md](AUDIO-MIX.md) §3 (listener)
 
 ---
 
@@ -17,7 +17,7 @@ Status: plan · Oct 2026 · builds on [PLAN.md](PLAN.md) §3 (intent layer, view
 | Modes | **Orbit** (today's camera, stays the default), **Walk** (gravity-bound avatar), **Fly** (free movement in the frame of the last bound gravity). First- or third-person in Walk and Fly. |
 | Switching | HUD segmented control (three glyphs), `C` toggles Orbit ↔ avatar, double-tap `Space` toggles Walk ↔ Fly (Minecraft muscle memory), `V` toggles first/third person. |
 | Gravity | A small set of analytic **gravity bodies**: the ground **plane** (default), **planetoid** (sphere) and **prism** (rounded box / n-gon prism). "Up" is the gradient of each body's signed distance field, so walking over a prism's edge rolls you smoothly onto the next face. Bodies are world objects: placed, saved and synced like toys. |
-| Fly frame | Fly keeps the **last bound body**; "up" is that body's up at your current position (constant for a plane, radial for a planetoid). `G` rebinds to whatever surface you aim at. |
+| Fly frame | Fly keeps the **last bound body**; "up" is that body's up at your current position (constant for a plane, radial for a planetoid). A setting freezes it at take-off instead (§13). `G` rebinds to whatever surface you aim at. |
 | Targeting | One **Aim** service replaces raw screen coordinates in the input layer: a ray from the pointer (Orbit) or the crosshair (avatar), returning toy part, surface point, normal, body and reach. Every creator action consumes an Aim hit. |
 | Ray preview | `B` toggles drawing the aim ray from the avatar's hand, the hit point (dot + ring on the surface normal), the targeted part's outline (visible through occluders), and the placement ghost. Off by default; remembered per device. |
 | Physics | A small **kinematic controller** in TS against analytic shapes. No physics engine for v1; Rapier stays an option if bodies become arbitrary meshes. |
@@ -101,7 +101,7 @@ Gravity strength is the same everywhere (a fixed "creative" acceleration); bodie
 2. **Fly:** no gravity. Movement axes come from the **last bound body's `up` at the current position**. Over the ground that's always world-up; around a planetoid it's radial, so flying "forward" curves around the planet, which feels like orbiting it.
 3. **Landing:** double-tap `Space` back to Walk and you fall toward the last bound body.
 4. **Rebind on purpose:** `G` binds to the body under the crosshair (its surface must be hit by the Aim ray). In Walk you then fall toward it, which is the fun way to "jump" from the ground to a planetoid floating overhead.
-5. An option, **"keep my up while flying"**, freezes the fly frame at take-off instead (open question §11).
+5. An option, **"keep my up while flying"**, freezes the fly frame at take-off instead (decided in §13: live is the default, both are playtested).
 
 ### 4.3 Toys on bodies
 
@@ -266,9 +266,22 @@ V0 is independent and small; it's a good first task. V1–V2 come after multipla
 
 ---
 
-## 13. Open questions
+## 13. Decisions (Oct 2026)
 
-1. **Fly frame:** live up from the last body (this plan's default) or frozen at take-off? Playtest both.
-2. **Avatar scale:** a fixed child-sized avatar, or a size slider ("be tiny and walk on the Orrery's rings")?
-3. Should toy **Forms** be solid to the avatar (walk around a Spire) or passable ("toys are made of light")? This plan collides with bases only.
-4. Should gravity bodies **make sound** (a planetoid hum tied to its size)? It fits "alien but lawful", but is a toy in disguise; maybe a later toy rather than a body feature.
+The open questions are settled; the defaults below are what V0/V1 ship.
+
+1. **Fly frame: live up from the last bound body** is the default. A toggle in the avatar settings (gear next to the mode switch, *"Keep my up while flying"*) freezes the frame at take-off instead. Both stay in the build so they can be playtested side by side; the setting is remembered per device.
+2. **Avatar scale: child-sized by default** (1.2 m tall, eye at 1.1 m), with a **size slider** in the avatar settings that snaps to three set points, **S** (0.3×, "be tiny and walk on the Orrery's rings"), **M** (1×) and **L** (1.6×). Eye height, step height, walk speed, jump and reach all scale with size.
+3. **Toy Forms are passable** ("toys are made of light"); the walker only steps up onto toy bases. A `solidToys` option makes Forms solid to the avatar (walk *around* a Spire) using each toy's bounding cylinder. It exists in code (`AvatarSettings.solidToys`) but has **no UI or key yet**.
+4. **Gravity bodies can make sound**: a planetoid hum tied to its size, built with the same toy features (a Voice with a frequency derived from the body's size). It is implemented as data (`GravityBody.sound`, `bodyHum()`), but **inactive and not player-accessible** for now (`BODY_SOUND = false`).
+
+## 14. Implementation status (Oct 2026)
+
+| Step | State | Where |
+|---|---|---|
+| V0 | Done. `Aim` (pointer in Orbit, crosshair in avatar mode; parts win ties; reach), `B` preview (ray, hit dot + ring + normal tick, part outline through occluders, action label, dashed red out of reach), `Shift+B` up arrow, virtual cursor for handle drags | `src/aim.ts`, `src/render/aim-preview.ts`, `src/input.ts` |
+| V1 | Done on the ground plane. Walk/Fly, double-tap Space, double-tap W boost, sneak (won't walk off the disc), step onto toy bases, fall-out respawn, first/third person (`V`, over-the-shoulder chase), pointer lock with "Click to look around" and a drag-to-look fallback when lock is refused, HUD mode switch + settings (size slider with S/M/L, fly frame, ray preview), hotbar (1–9, wheel, chest drop, middle-click pick), place with ghost, put away (`Delete`) with `Ctrl+Z`, carry (`R`), `[ ]` stretch, pans follow the avatar's head at 20 Hz | `src/avatar/`, `src/ui/hotbar.ts`, `src/ui/modes.ts`, `src/render/ghost.ts` |
+| V2 | Interfaces only: `GravityBody` with `sdf`/`up`/`raycast`/`covers`, the ground as a plane body, `G` rebinding, `bodyHum()` (inactive) | `src/avatar/gravity.ts` |
+| V4 | Avatar pose, mode, size and aim dot in presence, interpolated, with name tags; bodies in the room doc wait for V2 | `src/net/presence.ts` |
+
+Not done yet: distance attenuation per listener (needs the engine's `Monitor` param from [AUDIO-MIX.md](AUDIO-MIX.md)), the `?`/`F1` cheat sheet, Toy Book `I`, touch/gamepad (V3), kid-profile preview defaults.

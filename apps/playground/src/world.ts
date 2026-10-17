@@ -3,8 +3,22 @@ import type { AudioHost } from "./audio/host";
 import type { Fields } from "./audio/fields";
 import { describeLoadError, MAX_TOYS, SCALE_CUSTOM } from "./audio/protocol";
 import type { Stage } from "./render/stage";
+import { planeBody, type GravityBody } from "./avatar/gravity";
 import { toyEntry } from "./toys/registry";
-import { SnapView, type Toy } from "./toys/toy";
+import { SnapView, type PulseState, type Toy } from "./toys/toy";
+
+/** What changed on a toy, for the multiplayer binding. */
+export type ToyEdit = "pos" | "params" | "pulse" | "pattern";
+
+/** Everything needed to make a toy again: put-away undo, and the shared room doc. */
+export interface ToySnapshot {
+  id: string;
+  entry: string;
+  pos: [number, number, number];
+  params: Record<string, number>;
+  pulse: PulseState;
+  pattern: string;
+}
 
 export interface WorldTuning {
   root: number;
@@ -21,8 +35,22 @@ export class World {
   tuning: WorldTuning = { root: 60, scale: 0, wild: false };
   bpm = 96;
   master = 0.7;
+  /** Gravity bodies (docs/AVATAR.md §4); V1 has only the ground. */
+  readonly bodies: GravityBody[] = [planeBody()];
   /** Called when toys are added or removed. */
   onChange: (() => void) | null = null;
+  /** Local edits, for the room binding. Not called while `applying` remote changes. */
+  readonly listeners: {
+    add?(toy: Toy): void;
+    remove?(toy: Toy): void;
+    edit?(toy: Toy, what: ToyEdit): void;
+    world?(what: "tempo" | "tuning"): void;
+    poke?(toy: Toy, strength: number): void;
+  }[] = [];
+  /** Set while applying changes that came from the room, so they aren't echoed back. */
+  applying = false;
+  /** Whether this player may add, remove, move and retune toys (a locked room, MULTIPLAYER.md §12). */
+  canEdit = () => true;
 
   constructor(
     readonly stage: Stage,
@@ -45,23 +73,73 @@ export class World {
   onLoadError: ((slot: number, what: string, message: string) => void) | null = null;
 
   /** Place a toy from the registry by id (see toys/registry.ts). */
-  add(id: string, position?: THREE.Vector3): Toy | null {
+  add(id: string, position?: THREE.Vector3, toyId?: string): Toy | null {
+    if (!this.applying && !this.canEdit()) return null;
     const slot = this.toys.indexOf(null);
     const entry = toyEntry(id);
     if (slot < 0 || !entry) return null;
     const toy = entry.create(this, slot);
+    toy.entryId = id;
+    if (toyId) toy.id = toyId;
     toy.init(position ?? this.freeSpot());
     this.stage.scene.add(toy.group);
     this.toys[slot] = toy;
     this.onChange?.();
+    if (!this.applying) for (const l of this.listeners) l.add?.(toy);
     return toy;
   }
 
   remove(toy: Toy) {
+    if (!this.applying && !this.canEdit()) return;
     this.audio.send({ t: "remove", slot: toy.slot });
     toy.dispose();
     this.toys[toy.slot] = null;
     this.onChange?.();
+    if (!this.applying) for (const l of this.listeners) l.remove?.(toy);
+  }
+
+  /** Called by toys after a local change (toys/toy.ts). */
+  edited(toy: Toy, what: ToyEdit) {
+    if (this.applying || this.toys[toy.slot] !== toy) return;
+    for (const l of this.listeners) l.edit?.(toy, what);
+  }
+
+  /** Called by toys when played; anyone may play any toy, even in a locked room. */
+  poked(toy: Toy, strength: number) {
+    if (this.applying) return;
+    for (const l of this.listeners) l.poke?.(toy, strength);
+  }
+
+  byId(id: string): Toy | null {
+    return this.toys.find((t) => t?.id === id) ?? null;
+  }
+
+  snapshot(toy: Toy): ToySnapshot {
+    const p = toy.group.position;
+    return {
+      id: toy.id,
+      entry: toy.entryId,
+      pos: [p.x, p.y, p.z],
+      params: { ...toy.params },
+      pulse: { ...toy.pulse, prob: [...toy.pulse.prob] },
+      pattern: toy.pattern,
+    };
+  }
+
+  /** Make a toy from a snapshot (undo a put-away, or a toy that arrived from the room). */
+  restore(s: ToySnapshot): Toy | null {
+    const toy = this.add(s.entry, new THREE.Vector3(...s.pos), s.id);
+    if (!toy) return null;
+    this.applyState(toy, s);
+    return toy;
+  }
+
+  /** Bring an existing toy to a snapshot's params, Pulse and pattern. */
+  applyState(toy: Toy, s: Partial<ToySnapshot>) {
+    if (s.pos) toy.moveTo(new THREE.Vector3(...s.pos));
+    for (const [k, v] of Object.entries(s.params ?? {})) toy.setParam(k, v);
+    if (s.pulse) toy.setPulse({ ...s.pulse, prob: [...s.pulse.prob] });
+    if (s.pattern !== undefined && s.pattern !== toy.pattern) toy.setPattern(s.pattern);
   }
 
   get count() {
@@ -85,15 +163,19 @@ export class World {
   }
 
   setTempo(bpm: number) {
+    if (!this.applying && !this.canEdit()) return;
     this.bpm = Math.round(THREE.MathUtils.clamp(bpm, 40, 180));
     this.audio.send({ t: "tempo", bpm: this.bpm });
+    if (!this.applying) for (const l of this.listeners) l.world?.("tempo");
   }
 
   setTuning(t: Partial<WorldTuning>) {
+    if (!this.applying && !this.canEdit()) return;
     Object.assign(this.tuning, t);
     if (this.tuning.scale !== SCALE_CUSTOM) this.tuning.custom = undefined;
     const { root, scale, wild } = this.tuning;
     this.audio.send({ t: "tuning", root, scale, wild });
+    if (!this.applying) for (const l of this.listeners) l.world?.("tuning");
   }
 
   /** Any tuning as cents within a period (n-EDO, a Tonal scale, ...). */

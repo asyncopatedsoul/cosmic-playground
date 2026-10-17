@@ -108,6 +108,10 @@ export class Spire extends Toy {
     }
   }
 
+  hint(part: string) {
+    return part === "cap" ? "stretch" : part === "peg" ? "tune" : "pluck";
+  }
+
   down(part: string, _p: PointerInfo): DragHandler | null {
     if (part === "cap") return { move: (q) => this.setParam("length", this.params.length - q.dy * 0.007) };
     if (part === "peg") return { move: (q) => this.nudge("twist", (q.dx - q.dy) * 0.004) };

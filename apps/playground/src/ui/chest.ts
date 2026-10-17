@@ -11,6 +11,8 @@ import type { World } from "../world";
 export class Chest {
   private el: HTMLElement;
   private drawer: HTMLElement;
+  /** Somewhere else a card can be dropped (the avatar hotbar); returns true when it took the card. */
+  dropTarget: ((x: number, y: number, kind: string) => boolean) | null = null;
 
   constructor(
     private world: World,
@@ -79,6 +81,7 @@ export class Chest {
         this.world.add(kind);
         return;
       }
+      if (this.dropTarget?.(e.clientX, e.clientY, kind)) return;
       if (document.elementFromPoint(e.clientX, e.clientY) === this.stage.canvas) {
         const at = this.stage.planePoint(e.clientX, e.clientY);
         this.world.add(kind, at && at.length() < 12 ? at : undefined);

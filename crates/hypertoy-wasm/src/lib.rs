@@ -87,6 +87,11 @@ pub unsafe extern "C" fn toy_set_step(e: *mut Engine, slot: u32, step: u32, prob
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn toy_set_wild(e: *mut Engine, slot: u32, wild: u32) {
+    (*e).set_wild(slot as usize, wild != 0)
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn toy_poke(e: *mut Engine, slot: u32, strength: f32, aux: f32) {
     (*e).poke(slot as usize, strength, aux)
 }

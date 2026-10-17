@@ -89,6 +89,8 @@ struct Slot {
     /// Smoothed `GAIN` and `MONITOR`, following the params one sample at a time.
     gain: f32,
     monitor: f32,
+    /// Per-toy wild: this toy's pitch isn't snapped (see `Ctx::wild`).
+    wild: bool,
 }
 
 impl Slot {
@@ -102,6 +104,7 @@ impl Slot {
             flash: 0.0,
             gain: 1.0,
             monitor: 1.0,
+            wild: false,
         }
     }
 }
@@ -184,13 +187,13 @@ impl Engine {
         }
     }
 
-    fn ctx<'a>(params: &'a [f32; PARAMS], tuning: &'a Tuning, sr: f32, seed: u64, index: usize) -> Ctx<'a> {
-        Ctx { params, tuning, sr, seed, index }
+    fn ctx<'a>(params: &'a [f32; PARAMS], wild: bool, tuning: &'a Tuning, sr: f32, seed: u64, index: usize) -> Ctx<'a> {
+        Ctx { params, tuning, sr, seed, index, wild }
     }
 
     fn configure(&mut self, slot: usize) {
         let s = &mut self.slots[slot];
-        let cx = Self::ctx(&s.params, &self.tuning, self.sr, self.seed, slot);
+        let cx = Self::ctx(&s.params, s.wild, &self.tuning, self.sr, self.seed, slot);
         s.voice.configure(&cx);
     }
 
@@ -243,6 +246,7 @@ impl Engine {
         // A new toy starts at its own levels, not fading from the slot's last toy.
         s.gain = 1.0;
         s.monitor = 1.0;
+        s.wild = false;
         s.voice = match k {
             kind::SPIRE => Box::new(Spire::new(sr, slot)),
             kind::ORRERY => Box::new(Orrery::new()),
@@ -255,6 +259,14 @@ impl Engine {
         };
         self.ext[slot * BLOCK * 2..(slot + 1) * BLOCK * 2].fill(0.0);
         self.configure(slot);
+    }
+
+    /// Turn snapping off (or back on) for one toy.
+    pub fn set_wild(&mut self, slot: usize, wild: bool) {
+        if let Some(s) = self.slots.get_mut(slot) {
+            s.wild = wild;
+            self.configure(slot);
+        }
     }
 
     pub fn remove_toy(&mut self, slot: usize) {
@@ -279,7 +291,7 @@ impl Engine {
             _ => {}
         }
         let external = s.voice.external();
-        let cx = Self::ctx(&s.params, &self.tuning, self.sr, self.seed, slot);
+        let cx = Self::ctx(&s.params, s.wild, &self.tuning, self.sr, self.seed, slot);
         s.voice.param_set(p, was, &cx, beat);
         s.voice.configure(&cx);
         if external && p >= param::A {
@@ -313,7 +325,7 @@ impl Engine {
     pub fn poke(&mut self, slot: usize, strength: f32, _aux: f32) {
         let Some(s) = self.slots.get_mut(slot) else { return };
         let mut fx = Fx::default();
-        let cx = Self::ctx(&s.params, &self.tuning, self.sr, self.seed, slot);
+        let cx = Self::ctx(&s.params, s.wild, &self.tuning, self.sr, self.seed, slot);
         s.voice.poke(strength.clamp(0.0, 1.0), &cx, &mut fx);
         if fx.flash {
             s.flash = 1.0;
@@ -435,7 +447,7 @@ impl Engine {
                     ext: (self.ext[e + i], self.ext[e + BLOCK + i]),
                 };
                 let mut fx = Fx::default();
-                let cx = Ctx { params: &s.params, tuning: &self.tuning, sr: self.sr, seed: self.seed, index: idx };
+                let cx = Ctx { params: &s.params, tuning: &self.tuning, sr: self.sr, seed: self.seed, index: idx, wild: s.wild };
                 let (yl, yr) = s.voice.tick(&cx, &t, &mut fx);
                 s.gain += k * (s.params[param::GAIN].clamp(0.0, 1.0) - s.gain);
                 s.monitor += k * (s.params[param::MONITOR].clamp(0.0, 1.0) - s.monitor);

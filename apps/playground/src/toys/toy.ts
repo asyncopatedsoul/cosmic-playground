@@ -83,6 +83,8 @@ export abstract class Toy {
   entryId = "";
   /** The toy's level in the music, 0..1: shared in a room and saved (AUDIO-MIX.md §3.1). */
   volume = DEFAULT_VOLUME;
+  /** This toy alone doesn't snap to the Tuning (MODES.md §7.1). Shared and saved; no UI yet. */
+  wild = false;
 
   protected baseRadius = 0.6;
   protected flash = 0;
@@ -108,6 +110,7 @@ export abstract class Toy {
     this.afterAdd();
     for (const name of Object.keys(this.defs)) this.sendParam(name);
     this.sendVolume();
+    if (this.wild) this.world.audio.send({ t: "wild", slot: this.slot, wild: true });
     this.sendPulse();
     if (this.pattern) this.setPattern(this.pattern);
     this.sendPan();
@@ -226,6 +229,14 @@ export abstract class Toy {
     this.sendVolume();
     this.world.edited(this, "volume");
     this.world.mix.volumeChanged();
+  }
+
+  /** Turn snapping off (or on) for this toy only. */
+  setWild(on: boolean) {
+    if (!this.editable || on === this.wild) return;
+    this.wild = on;
+    this.world.audio.send({ t: "wild", slot: this.slot, wild: on });
+    this.world.edited(this, "wild");
   }
 
   private sendVolume() {

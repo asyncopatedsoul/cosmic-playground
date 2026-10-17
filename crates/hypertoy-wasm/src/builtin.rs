@@ -41,8 +41,10 @@ impl Voice for Spire {
         // Snap the fundamental first, so each harmonic is an exact multiple of a
         // scale tone (in a just table, harmonics 2-6 and 8 land on scale tones
         // exactly), then snap the harmonic itself (7 lands on its nearest tone).
+        // A wild Spire keeps its fundamental on the scale and leaves only the
+        // harmonic unsnapped, so harmonic 7 is exactly 7/4 above a scale tone.
         let base = cx.tuning.snap(f0);
-        self.freq = cx.tuning.snap((base * harmonic).min(6000.0));
+        self.freq = cx.snap((base * harmonic).min(6000.0));
         let t60 = (2.8 * (220.0 / self.freq).powf(0.35)).clamp(0.4, 6.0);
         self.pluck.set(self.freq, tension, t60);
     }
@@ -98,7 +100,7 @@ impl Voice for Orrery {
                 continue;
             }
             let t = kepler::period(r, ORRERY_K);
-            self.period[i] = if cx.tuning.wild { t } else { kepler::quantize(t, 0.5) };
+            self.period[i] = if cx.is_wild() { t } else { kepler::quantize(t, 0.5) };
             // Inner planets are faster and higher.
             let deg = ((2.2 - r) * 5.0).round() as i32;
             self.freq[i] = cx.tuning.degree(deg);
@@ -111,7 +113,7 @@ impl Voice for Orrery {
         if (param::A..param::A + PLANETS).contains(&p) && was <= 0.0 && v > 0.0 {
             let i = p - param::A;
             let period = kepler::period(v, ORRERY_K);
-            let period = if cx.tuning.wild { period } else { kepler::quantize(period, 0.5) };
+            let period = if cx.is_wild() { period } else { kepler::quantize(period, 0.5) };
             let speed = cx.params[param::SPEED].max(0.05) as f64;
             self.phase[i] = (beat * speed / period as f64).fract();
         }
@@ -193,7 +195,7 @@ impl Kettle {
         // 1–5 mm bubbles, pitch from the Minnaert law, then snapped to the Tuning.
         self.rolls += 1;
         let radius_mm = 1.0 + 4.0 * cx.roll(self.rolls);
-        let f = cx.tuning.snap(bubble::frequency(radius_mm / 1000.0));
+        let f = cx.snap(bubble::frequency(radius_mm / 1000.0));
         self.bubbles[self.next_bubble].trigger(f, energy, cx.sr);
         self.next_bubble = (self.next_bubble + 1) % BUBBLES;
         fx.flash = true;
@@ -246,6 +248,10 @@ mod tests {
 
     /// The Spire's sounding pitch when its raw fundamental is `drift` cents off the root.
     fn spire_freq(tuning: &Tuning, drift: f32, harmonic: f32) -> f32 {
+        spire_freq_wild(tuning, drift, harmonic, false)
+    }
+
+    fn spire_freq_wild(tuning: &Tuning, drift: f32, harmonic: f32, wild: bool) -> f32 {
         let tension = 0.5;
         let newtons = 40.0 * 8f32.powf(tension);
         // Pitch goes as 1/length: find the length for root * 2^(drift/1200).
@@ -254,7 +260,7 @@ mod tests {
         params[param::A] = string::frequency(1.0, newtons, SPIRE_DENSITY) / target;
         params[param::B] = tension;
         params[param::C] = harmonic;
-        let cx = Ctx { params: &params, tuning, sr: 48_000.0, seed: 1, index: 0 };
+        let cx = Ctx { params: &params, tuning, sr: 48_000.0, seed: 1, index: 0, wild };
         let mut s = Spire::new(48_000.0, 0);
         s.configure(&cx);
         s.freq
@@ -280,6 +286,17 @@ mod tests {
             let f = spire_freq(&t, d, 7.0);
             assert!(cents(f, t.root_hz * 4.0 * 5.0 / 3.0).abs() < 0.05, "drift {d}, harmonic 7: {f} Hz");
         }
+    }
+
+    #[test]
+    fn a_wild_spire_keeps_its_fundamental_and_frees_the_harmonic() {
+        let t = Tuning::new(130.81, Scale::JustPentatonic, false);
+        // Fundamental 30 cents sharp still snaps to C; harmonic 7 is the true 7/4.
+        let f = spire_freq_wild(&t, 30.0, 7.0, true);
+        assert!(cents(f, t.root_hz * 7.0).abs() < 0.05, "{f} Hz");
+        // Not wild: the same string plays the snapped A.
+        let f = spire_freq_wild(&t, 30.0, 7.0, false);
+        assert!(cents(f, t.root_hz * 4.0 * 5.0 / 3.0).abs() < 0.05, "{f} Hz");
     }
 
     #[test]

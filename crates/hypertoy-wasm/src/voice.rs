@@ -18,12 +18,29 @@ pub struct Ctx<'a> {
     /// The world seed and this toy's slot: together they key every random roll.
     pub seed: u64,
     pub index: usize,
+    /// This toy is wild: its Law's pitch isn't snapped, even when the world's
+    /// Tuning snaps (a per-toy switch, e.g. a puzzle's blue-seventh bonus).
+    pub wild: bool,
 }
 
 impl Ctx<'_> {
     /// A deterministic roll in [0, 1): same (seed, slot, n) on every client.
     pub fn roll(&self, n: u64) -> f32 {
         rng::unit(rng::hash3(self.seed, self.index as u64, n))
+    }
+
+    /// Snap to the Tuning unless this toy (or the whole world) is wild.
+    pub fn snap(&self, hz: f32) -> f32 {
+        if self.wild {
+            hz
+        } else {
+            self.tuning.snap(hz)
+        }
+    }
+
+    /// Whether snapping (pitch, and the Orrery's period grid) is off for this toy.
+    pub fn is_wild(&self) -> bool {
+        self.wild || self.tuning.wild
     }
 }
 

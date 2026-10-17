@@ -173,7 +173,7 @@ impl Voice for Custom {
             *v = p * arg.mul + arg.add;
         }
         let f = law::frequency(self.law, &a);
-        self.freq = if self.wild { f } else { cx.tuning.snap(f) };
+        self.freq = if self.wild { f } else { cx.snap(f) };
         // Held and droning patch voices follow the Law as it moves.
         if let Body::Patch { voices, .. } = &mut self.body {
             voices.iter_mut().for_each(|v| v.freq = self.freq);

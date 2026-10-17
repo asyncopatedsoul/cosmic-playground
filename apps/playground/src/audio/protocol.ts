@@ -3,7 +3,7 @@
 export const Kind = { None: 0, Spire: 1, Orrery: 2, Kettle: 3, Custom: 4 } as const;
 export type KindId = typeof Kind.Spire | typeof Kind.Orrery | typeof Kind.Kettle | typeof Kind.Custom;
 
-export { BLOCK, EVENT_STRIDE, EventKind, MAX_TOYS, MODULE_LOAD_LIMIT, MODULE_LOAD_WARN, Param } from "./abi";
+export { BLOCK, EVENT_STRIDE, EventKind, NOTE_STRIDE, MAX_TOYS, MODULE_LOAD_LIMIT, MODULE_LOAD_WARN, Param } from "./abi";
 import { Param } from "./abi";
 export const MAX_STEPS = 16;
 /** Params per slot; custom toys get `Param.A + i` for their i-th param. */
@@ -68,6 +68,8 @@ export type Command =
   | { t: "add"; slot: number; kind: number }
   | { t: "remove"; slot: number }
   | { t: "wild"; slot: number; wild: boolean }
+  /** Slots whose every note is forwarded with snapshots (MODES.md §3.3); replaces the previous list. */
+  | { t: "notes"; slots: number[] }
   | { t: "param"; slot: number; p: number; v: number }
   | { t: "step"; slot: number; step: number; prob: number }
   | { t: "poke"; slot: number; strength: number; aux: number }
@@ -80,7 +82,8 @@ export type Command =
 export type ToWorklet = Command | { t: "wasm"; bytes: ArrayBuffer };
 export type FromWorklet =
   | { t: "ready" }
-  | { t: "snap"; data: Float32Array }
+  /** `notes`: notes since the last snapshot from subscribed slots, `[slot, beat, hz, vel]` each. */
+  | { t: "snap"; data: Float32Array; notes?: Float32Array }
   | { t: "error"; message: string }
   /** A load command failed: `code` is the engine's LoadError code. */
   | { t: "loadError"; slot: number; what: string; code: number; detail?: string };
@@ -111,6 +114,7 @@ export interface EngineExports {
   toy_set_step(e: number, slot: number, step: number, prob: number): void;
   toy_poke(e: number, slot: number, strength: number, aux: number): void;
   toy_set_wild(e: number, slot: number, wild: number): void;
+  toy_set_report_notes(e: number, slot: number, on: number): void;
   toy_set_pattern(e: number, slot: number, len: number): number;
   toy_set_law(e: number, slot: number, law: number, wild: number): number;
   toy_load_patch(e: number, slot: number, len: number, voices: number, gate: number): number;

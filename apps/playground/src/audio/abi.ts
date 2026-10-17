@@ -23,6 +23,8 @@ export const BLOCK = 128;
 /** Per-block engine events: `[slot, frame, kind, a, b]`. */
 export const EVENT_STRIDE = 5;
 export const EventKind = { Note: 1, Param: 2 } as const;
+/** Notes forwarded to the main thread with a snapshot: `[slot, beat, hz, vel]`. */
+export const NOTE_STRIDE = 4;
 
 /** Above this measured load (fraction of real time) the worklet refuses a module. */
 export const MODULE_LOAD_LIMIT = 0.5;

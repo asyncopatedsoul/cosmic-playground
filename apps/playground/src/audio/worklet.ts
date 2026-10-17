@@ -3,7 +3,7 @@
 // WASM, and every few blocks posts a snapshot of toy state back so the visuals
 // follow the audio clock.
 
-import { BLOCK, EVENT_STRIDE, MAX_TOYS } from "./abi";
+import { BLOCK, EVENT_STRIDE, EventKind, MAX_TOYS, NOTE_STRIDE } from "./abi";
 import type { Command, EngineExports, FromWorklet, ToWorklet } from "./protocol";
 import { VmaHost } from "./vma";
 
@@ -14,6 +14,8 @@ declare class AudioWorkletProcessor {
 }
 
 const SNAP_EVERY = 3;
+/** Notes held for one snapshot at most; more are dropped (a runaway pattern). */
+const MAX_NOTES = 512;
 
 /** UTF-8 bytes of `s` (AudioWorkletGlobalScope has no TextEncoder). */
 function utf8(s: string): Uint8Array {
@@ -36,6 +38,9 @@ class HypertoyProcessor extends AudioWorkletProcessor {
   private queue: Command[] = [];
   private blocks = 0;
   private vma = new VmaHost(sampleRate);
+  /** Slots that forward every note, and the notes waiting for the next snapshot. */
+  private noteSlots = new Set<number>();
+  private notes: number[] = [];
 
   constructor() {
     super();
@@ -107,6 +112,8 @@ class HypertoyProcessor extends AudioWorkletProcessor {
       case "master": return x.engine_set_master(e, c.gain);
       case "add":
         this.vma.remove(c.slot);
+        // A new toy starts unsubscribed (the engine resets the slot); the host re-asks.
+        this.noteSlots.delete(c.slot);
         return x.toy_add(e, c.slot, c.kind);
       case "remove":
         this.vma.remove(c.slot);
@@ -115,6 +122,14 @@ class HypertoyProcessor extends AudioWorkletProcessor {
       case "step": return x.toy_set_step(e, c.slot, c.step, c.prob);
       case "poke": return x.toy_poke(e, c.slot, c.strength, c.aux);
       case "wild": return x.toy_set_wild(e, c.slot, c.wild ? 1 : 0);
+      case "notes": {
+        const next = new Set(c.slots.filter((s) => s >= 0 && s < MAX_TOYS));
+        for (const s of this.noteSlots) if (!next.has(s)) x.toy_set_report_notes(e, s, 0);
+        for (const s of next) if (!this.noteSlots.has(s)) x.toy_set_report_notes(e, s, 1);
+        this.noteSlots = next;
+        if (!next.size) this.notes.length = 0;
+        return;
+      }
       case "pattern": return this.check(c.slot, "pattern", x.toy_set_pattern(e, c.slot, this.text(c.text)), c.text);
       case "law":
         this.words(c.args);
@@ -166,7 +181,9 @@ class HypertoyProcessor extends AudioWorkletProcessor {
 
     const n = x.engine_events_len(this.e);
     if (n) {
-      if (this.vma.size) this.vma.takeEvents(this.f32(x.engine_events_ptr(this.e), n * EVENT_STRIDE), n);
+      const events = this.f32(x.engine_events_ptr(this.e), n * EVENT_STRIDE);
+      if (this.vma.size) this.vma.takeEvents(events, n);
+      if (this.noteSlots.size) this.takeNotes(events, n);
       x.engine_events_clear(this.e);
     }
 
@@ -176,9 +193,27 @@ class HypertoyProcessor extends AudioWorkletProcessor {
 
     if (++this.blocks % SNAP_EVERY === 0) {
       const data = this.snap!.slice();
-      this.post({ t: "snap", data }, [data.buffer]);
+      if (this.notes.length) {
+        const notes = Float32Array.from(this.notes);
+        this.notes.length = 0;
+        this.post({ t: "snap", data, notes }, [data.buffer, notes.buffer]);
+      } else this.post({ t: "snap", data }, [data.buffer]);
     }
     return true;
+  }
+
+  /** Beat-stamp this block's notes from subscribed slots (sample-exact: block start + frame). */
+  private takeNotes(events: Float32Array, n: number) {
+    const snap = this.snap!;
+    const dbeat = snap[1] / 60 / sampleRate;
+    const start = snap[0] - BLOCK * dbeat; // the snapshot's beat is the end of the block
+    for (let i = 0; i < n; i++) {
+      const o = i * EVENT_STRIDE;
+      const slot = events[o];
+      if (events[o + 2] !== EventKind.Note || !this.noteSlots.has(slot)) continue;
+      if (this.notes.length >= MAX_NOTES * NOTE_STRIDE) return;
+      this.notes.push(slot, start + events[o + 1] * dbeat, events[o + 4], events[o + 3]);
+    }
   }
 }
 

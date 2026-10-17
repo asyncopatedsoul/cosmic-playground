@@ -52,6 +52,7 @@ impl Voice for Spire {
     fn poke(&mut self, strength: f32, _cx: &Ctx, fx: &mut Fx) {
         self.pluck.pluck(strength);
         fx.flash = true;
+        fx.note(strength, self.freq);
     }
 
     #[inline]
@@ -61,6 +62,7 @@ impl Voice for Spire {
             let e = (0.5 + 0.35 * cx.roll(self.rolls)) * hit.vel;
             self.pluck.pluck(e);
             fx.flash = true;
+            fx.note(e, self.freq);
         }
         let y = self.pluck.tick() * 0.8;
         (y, y)
@@ -124,13 +126,14 @@ impl Voice for Orrery {
             if cx.params[param::A + i] > 0.0 {
                 self.bells[i].trigger(self.freq[i], 0.25 * strength, 2.5, cx.sr);
                 self.flash[i] = 1.0;
+                fx.note(strength, self.freq[i]);
             }
         }
         fx.flash = true;
     }
 
     #[inline]
-    fn tick(&mut self, cx: &Ctx, t: &Tick, _fx: &mut Fx) -> (f32, f32) {
+    fn tick(&mut self, cx: &Ctx, t: &Tick, fx: &mut Fx) -> (f32, f32) {
         let speed = cx.params[param::SPEED].max(0.05) as f64;
         let mut sum = 0.0;
         for i in 0..PLANETS {
@@ -141,8 +144,10 @@ impl Voice for Orrery {
                     // A transit across the meridian rings the planet.
                     self.phase[i] -= 1.0;
                     if t.pulse_on {
-                        self.bells[i].trigger(self.freq[i], 0.18 + 0.08 / r, 2.2, cx.sr);
+                        let vel = 0.18 + 0.08 / r;
+                        self.bells[i].trigger(self.freq[i], vel, 2.2, cx.sr);
                         self.flash[i] = 1.0;
+                        fx.note(vel.min(1.0), self.freq[i]);
                     }
                 }
             }
@@ -199,6 +204,7 @@ impl Kettle {
         self.bubbles[self.next_bubble].trigger(f, energy, cx.sr);
         self.next_bubble = (self.next_bubble + 1) % BUBBLES;
         fx.flash = true;
+        fx.note(energy.min(1.0), f);
     }
 }
 

@@ -38,7 +38,11 @@ impl Voice for Spire {
         let harmonic = p[param::C].round().clamp(1.0, 8.0);
         let newtons = 40.0 * 8f32.powf(tension);
         let f0 = string::frequency(length, newtons, SPIRE_DENSITY);
-        self.freq = cx.tuning.snap((f0 * harmonic).min(6000.0));
+        // Snap the fundamental first, so each harmonic is an exact multiple of a
+        // scale tone (in a just table, harmonics 2-6 and 8 land on scale tones
+        // exactly), then snap the harmonic itself (7 lands on its nearest tone).
+        let base = cx.tuning.snap(f0);
+        self.freq = cx.tuning.snap((base * harmonic).min(6000.0));
         let t60 = (2.8 * (220.0 / self.freq).powf(0.35)).clamp(0.4, 6.0);
         self.pluck.set(self.freq, tension, t60);
     }
@@ -231,5 +235,57 @@ impl Voice for Kettle {
         let bubbles: f32 = self.bubbles.iter_mut().map(|b| b.tick(sr)).sum();
         let y = texture + drone + bubbles;
         (y, y)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::voice::PARAMS;
+    use hypertoy_core::tuning::{Scale, Tuning};
+
+    /// The Spire's sounding pitch when its raw fundamental is `drift` cents off the root.
+    fn spire_freq(tuning: &Tuning, drift: f32, harmonic: f32) -> f32 {
+        let tension = 0.5;
+        let newtons = 40.0 * 8f32.powf(tension);
+        // Pitch goes as 1/length: find the length for root * 2^(drift/1200).
+        let target = tuning.root_hz * 2f32.powf(drift / 1200.0);
+        let mut params = [0.0; PARAMS];
+        params[param::A] = string::frequency(1.0, newtons, SPIRE_DENSITY) / target;
+        params[param::B] = tension;
+        params[param::C] = harmonic;
+        let cx = Ctx { params: &params, tuning, sr: 48_000.0, seed: 1, index: 0 };
+        let mut s = Spire::new(48_000.0, 0);
+        s.configure(&cx);
+        s.freq
+    }
+
+    fn cents(a: f32, b: f32) -> f32 {
+        1200.0 * (a / b).log2()
+    }
+
+    #[test]
+    fn spire_harmonics_are_exact_multiples_of_the_snapped_fundamental() {
+        // Just pentatonic on C3: 1, 9/8, 5/4, 3/2, 5/3.
+        let t = Tuning::new(130.81, Scale::JustPentatonic, false);
+        // Drifts that still snap the fundamental to the root (about +102 / -158
+        // cents). Snapping only after the multiply threw harmonic 3 onto A at
+        // +95 and harmonic 5 onto D at -150.
+        for d in [-150.0, -120.0, -90.0, -45.0, 0.0, 45.0, 95.0] {
+            for h in [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0] {
+                let f = spire_freq(&t, d, h);
+                assert!(cents(f, t.root_hz * h).abs() < 0.05, "drift {d}, harmonic {h}: {f} Hz");
+            }
+            // Harmonic 7 (7/4, 969 cents) snaps to 5/3 (884 cents): an A over C.
+            let f = spire_freq(&t, d, 7.0);
+            assert!(cents(f, t.root_hz * 4.0 * 5.0 / 3.0).abs() < 0.05, "drift {d}, harmonic 7: {f} Hz");
+        }
+    }
+
+    #[test]
+    fn wild_spire_is_unsnapped() {
+        let t = Tuning::new(130.81, Scale::JustPentatonic, true);
+        let f = spire_freq(&t, 37.0, 3.0);
+        assert!((cents(f, t.root_hz * 3.0) - 37.0).abs() < 0.05, "{f} Hz");
     }
 }

@@ -418,8 +418,13 @@ svg {
     height: 190px;
   }
 
+  /* Phones: the speaker (mute, long-press for Listen) stays; the slider goes. */
+  .hud-volume input {
+    display: none;
+  }
+
   .hud-volume {
-    display: none !important;
+    padding: 0 6px;
   }
 }
 
@@ -903,4 +908,225 @@ body.avatar-mode #wake {
 body.world-locked .hud-room::after {
   content: "🔒";
   font-size: 12px;
+}
+
+/* ---- Listening: mute, solo, focus, volume (AUDIO-MIX.md) ----------------- */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.hud-mute {
+  width: 28px;
+  height: 28px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-dim);
+}
+
+.hud-mute svg {
+  width: 18px;
+  height: 18px;
+}
+
+.hud-mute:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.hud-mute.active {
+  color: var(--accent);
+}
+
+.hud-volume input.muted {
+  opacity: 0.35;
+  filter: grayscale(1);
+}
+
+.volume-dial {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.volume-dial:focus-visible,
+.listen-buttons button:focus-visible {
+  outline: 2px solid var(--toy, var(--accent));
+  outline-offset: 2px;
+}
+
+.volume-dial svg {
+  width: 100%;
+  height: 100%;
+}
+
+.dial-track {
+  fill: rgba(255, 255, 255, 0.04);
+  stroke: rgba(255, 255, 255, 0.14);
+  stroke-width: 5;
+}
+
+.dial-fill {
+  fill: none;
+  stroke: var(--toy, var(--accent));
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+.dial-detent {
+  stroke: var(--ink-dim);
+  stroke-width: 1.5;
+  opacity: 0.7;
+}
+
+.listen-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.listen-buttons button {
+  width: 36px;
+  height: 36px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-dim);
+  border: 1px solid transparent;
+}
+
+.listen-buttons button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.listen-buttons button:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.listen-buttons button.active {
+  color: var(--ink);
+  border-color: var(--toy, var(--accent));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--toy, var(--accent)) 40%, transparent);
+}
+
+.sound-row {
+  justify-content: center;
+  gap: 10px;
+}
+
+.sound-row:empty {
+  display: none;
+}
+
+.listen {
+  position: fixed;
+  top: calc(var(--pad) + 52px);
+  right: var(--pad);
+  z-index: 5;
+  width: min(380px, calc(100vw - 24px));
+  max-height: 70vh;
+  overflow: auto;
+  padding: 10px 12px;
+  border-radius: 18px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  backdrop-filter: blur(12px);
+}
+
+.listen[hidden] {
+  display: none;
+}
+
+.listen-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.listen-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.listen-icon {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  color: var(--toy);
+}
+
+.listen-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listen-empty {
+  color: var(--ink-dim);
+  justify-content: center;
+}
+
+.listen-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--panel-edge);
+  color: var(--ink-dim);
+  font-size: 13px;
+}
+
+.listen-clear {
+  padding: 4px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--panel-edge);
+}
+
+.listen-clear:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sound-badge {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 4;
+  width: 30px;
+  height: 30px;
+  border-radius: 15px;
+  display: grid;
+  place-items: center;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid color-mix(in srgb, var(--toy) 60%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.sound-badge[hidden] {
+  display: none;
+}
+
+.sound-badge svg {
+  width: 18px;
+  height: 18px;
+}
+
+.sound-badge.muted {
+  color: var(--accent);
 }

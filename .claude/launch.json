@@ -17,6 +17,21 @@
       "port": 5173
     },
     {
+      "name": "playground-alt",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "-w",
+        "apps/playground",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5181",
+        "--strictPort"
+      ],
+      "port": 5181
+    },
+    {
       "name": "playground-build",
       "runtimeExecutable": "npm",
       "runtimeArgs": [

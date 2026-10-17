@@ -1,6 +1,8 @@
 import type { AudioHost } from "../audio/host";
 import { SCALE_CUSTOM } from "../audio/protocol";
 import type { World } from "../world";
+import { announce } from "./announce";
+import { GLYPHS } from "./sound";
 import { Tunings } from "./tunings";
 
 const SCALES = [
@@ -11,8 +13,19 @@ const SCALES = [
   { id: 4, glyph: "◐", name: "Dorian" },
 ];
 
+const LONG_PRESS_MS = 420;
+
+/** Mute or unmute everything for this player, and say so. */
+export function toggleGlobalMute(world: World) {
+  world.mix.setMuted(!world.mix.muted);
+  announce(world.mix.muted ? "Sound off" : "Sound on");
+}
+
 /** World controls: tempo, Tuning, the wild switch and volume. */
 export class Hud {
+  /** Opens the Listen sheet (long-press on the speaker); set by main.ts. */
+  onListen: (() => void) | null = null;
+
   constructor(world: World, audio: AudioHost) {
     const el = document.getElementById("hud")!;
     el.innerHTML = `
@@ -24,10 +37,10 @@ export class Hud {
       <button class="hud-scale" title="Tuning: what every toy snaps to"></button>
       <button class="hud-tunings" title="More tunings: named scales, equal steps, Scala files" aria-label="More tunings">≋</button>
       <button class="hud-wild" title="Wild: turn snapping off (microtonal)">✺</button>
-      <label class="hud-volume" title="Volume">
-        <svg viewBox="0 0 20 20"><path d="M3 8h3l4-4v12l-4-4H3zM13 7c1.5 1.5 1.5 4.5 0 6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
-        <input type="range" min="0" max="1" step="0.01" aria-label="Volume">
-      </label>
+      <div class="hud-volume">
+        <button class="hud-mute" title="Mute everything (M). Long-press: Listen (L)" aria-pressed="false"></button>
+        <input type="range" min="0" max="1" step="0.01" aria-label="Volume" title="Volume">
+      </div>
       <button class="hud-help" aria-label="Help">?</button>`;
 
     const tempo = el.querySelector(".tempo b")!;
@@ -59,11 +72,41 @@ export class Hud {
       world.setTuning({ wild: !world.tuning.wild });
       render();
     });
-    volume.value = String(world.master);
+    // The speaker: tap mutes everything (the engine keeps running, so the beat
+    // stays locked); long-press opens the Listen sheet.
+    const mute = el.querySelector<HTMLButtonElement>(".hud-mute")!;
+    const renderMix = () => {
+      const { muted, master } = world.mix;
+      mute.innerHTML = muted ? GLYPHS.muted : GLYPHS.speaker;
+      mute.setAttribute("aria-pressed", String(muted));
+      mute.setAttribute("aria-label", muted ? "Unmute" : "Mute");
+      mute.classList.toggle("active", muted);
+      volume.classList.toggle("muted", muted);
+      if (document.activeElement !== volume) volume.value = String(master);
+    };
+    world.mix.listeners.push(renderMix);
+    let timer = 0;
+    let long = false;
+    mute.addEventListener("pointerdown", () => {
+      long = false;
+      timer = window.setTimeout(() => {
+        long = true;
+        this.onListen?.();
+      }, LONG_PRESS_MS);
+    });
+    const release = () => clearTimeout(timer);
+    mute.addEventListener("pointerup", release);
+    mute.addEventListener("pointerleave", release);
+    mute.addEventListener("click", () => {
+      if (long) return;
+      audio.start();
+      toggleGlobalMute(world);
+    });
     volume.addEventListener("input", () => {
       audio.start();
       world.setMaster(Number(volume.value));
     });
+    renderMix();
 
     const help = document.getElementById("help")!;
     el.querySelector(".hud-help")!.addEventListener("click", () => help.classList.toggle("open"));

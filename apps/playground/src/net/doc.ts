@@ -12,11 +12,12 @@ const FLUSH_MS = 33;
  * Binds the World to the room's Y.Doc (docs/MULTIPLAYER.md §4):
  *
  *   world : Y.Map { init, bpm, root, scale, wild, locked }
- *   toys  : Y.Map<toyId, Y.Map { entry, pos, params: Y.Map, pulse, pattern }>
+ *   toys  : Y.Map<toyId, Y.Map { entry, pos, params: Y.Map, pulse, pattern, volume }>
  *
  * Local edits go into the doc (throttled); remote changes are applied to the
  * World with `world.applying` set. The first admin to sync an empty room seeds
  * it from their world; everyone else's world is replaced by the room's.
+ * Mute, solo and focus are each player's own and never written (AUDIO-MIX.md §5).
  * Not shared yet: custom tunings (tables, Scala), zap recipes, Forge-only toys.
  */
 export class WorldBinding {
@@ -151,6 +152,7 @@ export class WorldBinding {
         if (whats.has("pos")) m.set("pos", s.pos);
         if (whats.has("pulse")) m.set("pulse", s.pulse);
         if (whats.has("pattern")) m.set("pattern", s.pattern);
+        if (whats.has("volume")) m.set("volume", s.volume);
         if (whats.has("params")) {
           const params = m.get("params") as Y.Map<number>;
           for (const [k, v] of Object.entries(s.params)) if (params.get(k) !== v) params.set(k, v);
@@ -178,6 +180,7 @@ export class WorldBinding {
       params: s.params,
       pulse: JSON.stringify(s.pulse) !== JSON.stringify(toy.pulse) ? s.pulse : undefined,
       pattern: s.pattern,
+      volume: s.volume,
     });
   }
 
@@ -210,6 +213,7 @@ function toyMap(s: ToySnapshot): Y.Map<unknown> {
   m.set("params", new Y.Map(Object.entries(s.params)));
   m.set("pulse", s.pulse);
   m.set("pattern", s.pattern);
+  m.set("volume", s.volume);
   return m;
 }
 
@@ -222,5 +226,6 @@ function readToy(id: string, m: Y.Map<unknown>): ToySnapshot {
     params: params ? Object.fromEntries(params.entries()) : {},
     pulse: m.get("pulse") as PulseState,
     pattern: String(m.get("pattern") ?? ""),
+    volume: typeof m.get("volume") === "number" ? (m.get("volume") as number) : undefined,
   };
 }

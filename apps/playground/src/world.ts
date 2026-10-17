@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { AudioHost } from "./audio/host";
+import { MixState } from "./audio/mix";
 import type { Fields } from "./audio/fields";
 import { describeLoadError, MAX_TOYS, SCALE_CUSTOM } from "./audio/protocol";
 import type { Stage } from "./render/stage";
@@ -8,7 +9,7 @@ import { toyEntry } from "./toys/registry";
 import { SnapView, type PulseState, type Toy } from "./toys/toy";
 
 /** What changed on a toy, for the multiplayer binding. */
-export type ToyEdit = "pos" | "params" | "pulse" | "pattern";
+export type ToyEdit = "pos" | "params" | "pulse" | "pattern" | "volume";
 
 /** Everything needed to make a toy again: put-away undo, and the shared room doc. */
 export interface ToySnapshot {
@@ -18,6 +19,8 @@ export interface ToySnapshot {
   params: Record<string, number>;
   pulse: PulseState;
   pattern: string;
+  /** The toy's level in the music (shared, saved); missing in old snapshots. */
+  volume?: number;
 }
 
 export interface WorldTuning {
@@ -34,7 +37,8 @@ export class World {
   readonly toys: (Toy | null)[] = new Array(MAX_TOYS).fill(null);
   tuning: WorldTuning = { root: 60, scale: 0, wild: false };
   bpm = 96;
-  master = 0.7;
+  /** What this player hears: master, mute, solo, focus (local, never shared). */
+  readonly mix: MixState;
   /** Gravity bodies (docs/AVATAR.md §4); V1 has only the ground. */
   readonly bodies: GravityBody[] = [planeBody()];
   /** Called when toys are added or removed. */
@@ -57,9 +61,10 @@ export class World {
     readonly audio: AudioHost,
     readonly fields: Fields,
   ) {
+    this.mix = new MixState(this);
     this.setTempo(this.bpm);
     this.setTuning({});
-    this.setMaster(this.master);
+    this.mix.apply();
     audio.onLoadError = (slot, what, code, detail) => {
       const msg = describeLoadError(code) + (detail && what === "external" ? `: ${detail}` : "");
       const toy = this.toys[slot];
@@ -84,6 +89,7 @@ export class World {
     toy.init(position ?? this.freeSpot());
     this.stage.scene.add(toy.group);
     this.toys[slot] = toy;
+    this.mix.apply();
     this.onChange?.();
     if (!this.applying) for (const l of this.listeners) l.add?.(toy);
     return toy;
@@ -94,6 +100,7 @@ export class World {
     this.audio.send({ t: "remove", slot: toy.slot });
     toy.dispose();
     this.toys[toy.slot] = null;
+    this.mix.forget(toy);
     this.onChange?.();
     if (!this.applying) for (const l of this.listeners) l.remove?.(toy);
   }
@@ -123,6 +130,7 @@ export class World {
       params: { ...toy.params },
       pulse: { ...toy.pulse, prob: [...toy.pulse.prob] },
       pattern: toy.pattern,
+      volume: toy.volume,
     };
   }
 
@@ -140,6 +148,7 @@ export class World {
     for (const [k, v] of Object.entries(s.params ?? {})) toy.setParam(k, v);
     if (s.pulse) toy.setPulse({ ...s.pulse, prob: [...s.pulse.prob] });
     if (s.pattern !== undefined && s.pattern !== toy.pattern) toy.setPattern(s.pattern);
+    if (typeof s.volume === "number" && s.volume !== toy.volume) toy.setVolume(s.volume);
   }
 
   get count() {
@@ -190,9 +199,12 @@ export class World {
     this.setTuning({ scale: SCALE_CUSTOM, custom: name });
   }
 
+  get master() {
+    return this.mix.master;
+  }
+
   setMaster(gain: number) {
-    this.master = THREE.MathUtils.clamp(gain, 0, 1);
-    this.audio.send({ t: "master", gain: this.master * 0.85 });
+    this.mix.setMaster(gain);
   }
 
   update(dt: number, t: number) {

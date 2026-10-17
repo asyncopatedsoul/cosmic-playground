@@ -3,6 +3,7 @@ import { Kind, MAX_STEPS, Snap } from "../audio/protocol";
 import { ConfigToy } from "../toys/config-toy";
 import { euclid, SnapView, type Toy } from "../toys/toy";
 import { RecipeBox } from "./recipe-box";
+import { SoundRow } from "./sound";
 import type { World } from "../world";
 
 const RING_R = 92;
@@ -35,6 +36,7 @@ export class PulseEditor {
   private script: HTMLInputElement;
   private scriptError: HTMLElement;
   private recipes: RecipeBox;
+  private sound: SoundRow;
 
   constructor(private world: World) {
     this.el = document.getElementById("pulse")!;
@@ -54,6 +56,8 @@ export class PulseEditor {
         <small class="pulse-script-error" role="status"></small>
       </form>
       <div class="pulse-recipes"></div>`;
+    this.sound = new SoundRow(world);
+    this.el.querySelector(".pulse-rates")!.before(this.sound.el);
     this.svg = this.el.querySelector("svg")!;
     const form = this.el.querySelector<HTMLFormElement>(".pulse-script")!;
     this.script = form.querySelector("input")!;
@@ -96,6 +100,7 @@ export class PulseEditor {
     this.script.value = toy.pattern;
     this.script.form!.hidden = !toy.pattern;
     this.recipes.show(toy instanceof ConfigToy && toy.config.voice.engine === "zap" ? toy : null);
+    this.sound.show(toy);
     this.render();
   }
 
@@ -110,6 +115,7 @@ export class PulseEditor {
   close() {
     if (this.toy) this.toy.selected = false;
     this.toy = null;
+    this.sound.show(null);
     this.el.classList.remove("open");
   }
 

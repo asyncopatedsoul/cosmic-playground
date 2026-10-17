@@ -161,3 +161,17 @@ HUD → long-press the speaker (or `L`) opens a compact list of toys in play: ic
 | **A5. Listen sheet** | Advanced list, screen-reader route | Every control reachable without a pointer |
 
 A1–A3 are small (about 2–3 days) and can be done any time; they're most useful just before multiplayer playtests.
+
+### 7.1 Status (Oct 2026)
+
+A1–A5 are implemented:
+
+| Step | Where |
+|---|---|
+| A1 | `engine.rs`: `param::MONITOR`, per-slot smoothed `gain`/`monitor` and a smoothed master (10 ms one-pole), bus tap and `env` pre-monitor, reverb send post-monitor; tests `monitor_mutes_what_you_hear_but_not_the_bus_or_the_visuals` and `gain_and_master_ramp_without_clicks`; golden fingerprints unchanged |
+| A2 | `audio/mix.ts` (`MixState`, persisted as `cosmic.mix`), HUD speaker button (tap mute, long-press Listen), `M`; global mute sends master 0 and the engine ramps it |
+| A3 | `MixState` mute/solo/focus → `Monitor`; `N`, `Shift+N`, `H` (hold = momentary), `Shift+M`; toy visuals (dashed ring when muted, halo when soloed/focused, ring and heart dimmed on the others); sound badge over the aimed toy (`ui/sound-badge.ts`) |
+| A4 | `Toy.volume` (default 0.8) → `Param.Gain`, ring thickness follows it, `-`/`=`, Sound row in the toy panel (`ui/sound.ts`), shared through the room doc (`net/doc.ts`) and in `ToySnapshot` |
+| A5 | Listen sheet (`ui/listen.ts`, `L`): every toy's volume dial, mute, solo, focus; "Clear all"; "Mute when hidden"; screen-reader announcements (`ui/announce.ts`) |
+
+Not done yet: gamepad and MIDI bindings (no gamepad or MIDI input exists yet), kid mode's reduced controls (no kid mode yet), the presence "🎧" glyph (M4), the Toy Book's audition focus (TOY-BOOK B3), and full-toy desaturation for non-soloed toys (only the ring and heart dim). On phones the HUD keeps the speaker and drops the slider.

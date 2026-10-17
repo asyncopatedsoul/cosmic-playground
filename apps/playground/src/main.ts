@@ -12,9 +12,11 @@ import { configEntry, registerToy } from "./toys/registry";
 import { Chest } from "./ui/chest";
 import { Hotbar } from "./ui/hotbar";
 import { Hud } from "./ui/hud";
+import { ListenSheet } from "./ui/listen";
 import { ModeSwitch } from "./ui/modes";
 import { RoomSheet } from "./ui/room";
 import { PulseEditor } from "./ui/pulse-editor";
+import { SoundBadge } from "./ui/sound-badge";
 import { World } from "./world";
 import "./style.css";
 
@@ -24,7 +26,11 @@ const fields = new Fields();
 const world = new World(stage, audio, fields);
 const editor = new PulseEditor(world);
 const chest = new Chest(world, stage, audio);
-new Hud(world, audio);
+const hud = new Hud(world, audio);
+const listen = new ListenSheet(world, document.getElementById("hud")!);
+hud.onListen = () => listen.toggle();
+const badge = new SoundBadge(world);
+badge.onLongPress = (toy) => editor.open(toy);
 const aim = new Aim(stage, world);
 const preview = new AimPreview(stage);
 const avatar = new Avatar(stage, world, "#8fd3ff");
@@ -33,7 +39,7 @@ const hotbar = new Hotbar();
 avatar.onEnter = () => chest.toggle(false);
 const ghost = new PlacementGhost(stage.scene);
 const room = new RoomSheet(document.getElementById("hud")!, world, stage, avatar, aim);
-const input = new Input({ stage, world, editor, chest, audio, aim, preview, avatar, hotbar, ghost, modes });
+const input = new Input({ stage, world, editor, chest, audio, aim, preview, avatar, hotbar, ghost, modes, listen, badge });
 
 // Start with a string to pluck and an orrery already turning, so the first
 // touch makes sound and the world is playing on its own right away.

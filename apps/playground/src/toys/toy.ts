@@ -81,11 +81,17 @@ export abstract class Toy {
   id = randomId();
   /** The registry entry this toy was made from (toys/registry.ts). */
   entryId = "";
+  /** The toy's level in the music, 0..1: shared in a room and saved (AUDIO-MIX.md §3.1). */
+  volume = DEFAULT_VOLUME;
 
   protected baseRadius = 0.6;
   protected flash = 0;
   private heart!: THREE.Mesh;
   private ring!: THREE.Mesh;
+  /** Shown instead of the ring while this player has the toy muted. */
+  private dashes!: THREE.Group;
+  /** A bright outer ring while soloed or focused. */
+  private halo!: THREE.Mesh;
 
   constructor(
     readonly world: World,
@@ -101,6 +107,7 @@ export abstract class Toy {
     this.world.audio.send({ t: "add", slot: this.slot, kind: this.kind });
     this.afterAdd();
     for (const name of Object.keys(this.defs)) this.sendParam(name);
+    this.sendVolume();
     this.sendPulse();
     if (this.pattern) this.setPattern(this.pattern);
     this.sendPan();
@@ -125,13 +132,38 @@ export abstract class Toy {
     base.position.y = 0.06;
     this.add(base, "base");
 
+    // The ring's thickness follows the toy's volume.
     this.ring = new THREE.Mesh(
-      new THREE.TorusGeometry(r * 1.03, 0.018, 8, 64),
+      ringGeometry(r, this.volume),
       new THREE.MeshBasicMaterial({ color: this.color, transparent: true, opacity: 0.35 }),
     );
     this.ring.rotation.x = Math.PI / 2;
     this.ring.position.y = 0.12;
     this.group.add(this.ring);
+
+    // Muted (for this player): the ring breaks into dashes.
+    this.dashes = new THREE.Group();
+    const dashMat = new THREE.MeshBasicMaterial({ color: this.color, transparent: true, opacity: 0.55 });
+    const n = 16;
+    for (let i = 0; i < n; i++) {
+      const dash = new THREE.Mesh(new THREE.TorusGeometry(r * 1.03, 0.014, 6, 6, (Math.PI * 2) / n / 2), dashMat);
+      dash.rotation.z = (i / n) * Math.PI * 2;
+      this.dashes.add(dash);
+    }
+    this.dashes.rotation.x = Math.PI / 2;
+    this.dashes.position.y = 0.12;
+    this.dashes.visible = false;
+    this.group.add(this.dashes);
+
+    // Soloed or focused: a bright halo just outside the base.
+    this.halo = new THREE.Mesh(
+      new THREE.TorusGeometry(r * 1.22, 0.022, 8, 64),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false }),
+    );
+    this.halo.rotation.x = Math.PI / 2;
+    this.halo.position.y = 0.1;
+    this.halo.visible = false;
+    this.group.add(this.halo);
 
     // The heart: tap it to edit the toy's Pulse.
     this.heart = new THREE.Mesh(
@@ -184,6 +216,25 @@ export abstract class Toy {
   }
 
   protected onParam(_name: string) {}
+
+  /** Set the toy's level in the music (shared, like a param). */
+  setVolume(value: number) {
+    if (!this.editable) return;
+    const v = Math.round(THREE.MathUtils.clamp(value, 0, 1) * 100) / 100;
+    if (v === this.volume) return;
+    this.volume = v;
+    this.sendVolume();
+    this.world.edited(this, "volume");
+    this.world.mix.volumeChanged();
+  }
+
+  private sendVolume() {
+    this.world.audio.send({ t: "param", slot: this.slot, p: Param.Gain, v: this.volume });
+    if (this.ring) {
+      this.ring.geometry.dispose();
+      this.ring.geometry = ringGeometry(this.baseRadius, this.volume);
+    }
+  }
 
   private sendParam(name: string) {
     this.world.audio.send({ t: "param", slot: this.slot, p: this.defs[name].id, v: this.params[name] });
@@ -257,11 +308,23 @@ export abstract class Toy {
     const f = snap ? snap.get(Snap.flash) : 0;
     this.flash = this.world.stage.reducedMotion ? f * 0.3 : f;
     const beat = this.pulse.enabled ? 0.5 + 0.5 * Math.sin(t * 2.4) : 0;
+    // How this player hears the toy (AUDIO-MIX.md §4.2). A muted toy keeps moving
+    // with the music: it's playing, you just aren't hearing it.
+    const listening = this.world.mix.listening(this);
+    const dim = listening === "muted" ? 0.3 : listening === "dimmed" ? 0.45 : 1;
     const hm = this.heart.material as THREE.MeshStandardMaterial;
-    hm.emissiveIntensity = 0.5 + beat * 0.6 + this.flash * 2.5;
+    hm.emissiveIntensity = (0.5 + beat * 0.6 + this.flash * 2.5) * dim;
     this.heart.scale.setScalar(1 + this.flash * 0.5);
     const rm = this.ring.material as THREE.MeshBasicMaterial;
-    rm.opacity = this.selected ? 0.95 : 0.3 + this.flash * 0.4;
+    rm.opacity = (this.selected ? 0.95 : 0.3 + this.flash * 0.4) * (listening === "dimmed" ? 0.5 : 1);
+    this.ring.visible = listening !== "muted";
+    this.dashes.visible = listening === "muted";
+    this.halo.visible = listening === "solo" || listening === "focus";
+    if (this.halo.visible) {
+      const m = this.halo.material as THREE.MeshBasicMaterial;
+      m.color.set(listening === "solo" ? 0xffffff : this.color);
+      m.opacity = (listening === "solo" ? 0.75 : 0.5) + this.flash * 0.25;
+    }
   }
 
   dispose() {
@@ -274,6 +337,14 @@ export abstract class Toy {
       }
     });
   }
+}
+
+/** A new toy's volume; the dial has a soft detent here. */
+export const DEFAULT_VOLUME = 0.8;
+
+/** The base ring, thicker for louder toys. */
+function ringGeometry(r: number, volume: number) {
+  return new THREE.TorusGeometry(r * 1.03, 0.008 + 0.022 * volume, 8, 64);
 }
 
 /** A random 65-bit id in base32. */

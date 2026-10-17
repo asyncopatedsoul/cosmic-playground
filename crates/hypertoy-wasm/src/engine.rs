@@ -54,6 +54,9 @@ pub mod param {
     pub const STEPS_PER_BEAT: usize = 3;
     pub const STEPS: usize = 4;
     pub const SPEED: usize = 5;
+    /// The listener's own level for this toy (mute/solo/focus, AUDIO-MIX.md §3).
+    /// Applied after the bus tap, so listening toys and visuals never hear it.
+    pub const MONITOR: usize = 6;
     /// Toy-specific params start here.
     /// Spire: A length (m), B tension (0..1), C harmonic (1..8).
     /// Orrery: A..D planet orbit radii (0 = no planet).
@@ -73,6 +76,8 @@ pub mod event {
 }
 
 const REVERB_SEND: f32 = 0.35;
+/// Time constant of the gain, monitor and master ramps: changes never click.
+const RAMP_S: f32 = 0.010;
 
 struct Slot {
     kind: u32,
@@ -81,11 +86,23 @@ struct Slot {
     voice: Box<dyn Voice>,
     env: f32,
     flash: f32,
+    /// Smoothed `GAIN` and `MONITOR`, following the params one sample at a time.
+    gain: f32,
+    monitor: f32,
 }
 
 impl Slot {
     fn empty() -> Self {
-        Slot { kind: kind::NONE, params: [0.0; PARAMS], pulse: Pulse::default(), voice: Box::new(Silent), env: 0.0, flash: 0.0 }
+        Slot {
+            kind: kind::NONE,
+            params: [0.0; PARAMS],
+            pulse: Pulse::default(),
+            voice: Box::new(Silent),
+            env: 0.0,
+            flash: 0.0,
+            gain: 1.0,
+            monitor: 1.0,
+        }
     }
 }
 
@@ -123,7 +140,11 @@ impl LoadError {
 pub struct Engine {
     pub clock: Clock,
     pub tuning: Tuning,
+    /// Master gain target; the output ramps to it (so muting is a fade, not a click).
     pub master: f32,
+    master_now: f32,
+    /// One-pole coefficient for `RAMP_S`.
+    ramp: f32,
     pub out: [f32; BLOCK * 2],
     pub snap: [f32; SNAP_LEN],
     /// Host-written audio for external voices: per slot, BLOCK left then BLOCK right.
@@ -146,6 +167,8 @@ impl Engine {
             clock: Clock::new(sr as f64, 96.0),
             tuning: Tuning::default(),
             master: 0.7,
+            master_now: 0.7,
+            ramp: 1.0 - (-1.0 / (RAMP_S * sr)).exp(),
             out: [0.0; BLOCK * 2],
             snap: [0.0; SNAP_LEN],
             ext: vec![0.0; MAX_TOYS * BLOCK * 2],
@@ -212,10 +235,14 @@ impl Engine {
         s.kind = k;
         s.params = [0.0; PARAMS];
         s.params[param::GAIN] = 1.0;
+        s.params[param::MONITOR] = 1.0;
         s.params[param::SPEED] = 1.0;
         s.pulse = Pulse::default();
         s.env = 0.0;
         s.flash = 0.0;
+        // A new toy starts at its own levels, not fading from the slot's last toy.
+        s.gain = 1.0;
+        s.monitor = 1.0;
         s.voice = match k {
             kind::SPIRE => Box::new(Spire::new(sr, slot)),
             kind::ORRERY => Box::new(Orrery::new()),
@@ -386,8 +413,10 @@ impl Engine {
     pub fn process(&mut self, frames: usize) {
         let frames = frames.min(BLOCK);
         let dbeat = self.clock.beats_per_sample();
+        let k = self.ramp;
         for i in 0..frames {
             let beat = self.clock.beat;
+            self.master_now += k * (self.master - self.master_now);
             let (mut l, mut r, mut send) = (0.0f32, 0.0f32, 0.0f32);
             for idx in 0..MAX_TOYS {
                 let s = &mut self.slots[idx];
@@ -408,8 +437,15 @@ impl Engine {
                 let mut fx = Fx::default();
                 let cx = Ctx { params: &s.params, tuning: &self.tuning, sr: self.sr, seed: self.seed, index: idx };
                 let (yl, yr) = s.voice.tick(&cx, &t, &mut fx);
-                let gain = s.params[param::GAIN];
-                let (yl, yr) = (yl * gain, yr * gain);
+                s.gain += k * (s.params[param::GAIN].clamp(0.0, 1.0) - s.gain);
+                s.monitor += k * (s.params[param::MONITOR].clamp(0.0, 1.0) - s.monitor);
+                let (yl, yr) = (yl * s.gain, yr * s.gain);
+                // The bus tap and the visuals take the toy's level in the music;
+                // everything after this is only what this listener hears.
+                let mono = 0.5 * (yl + yr);
+                s.env = mono.abs().max(s.env * 0.9995);
+                self.bus[idx * BLOCK + i] = mono;
+                let (yl, yr) = (yl * s.monitor, yr * s.monitor);
                 let pan = s.params[param::PAN].clamp(-1.0, 1.0);
                 let (gl, gr) = if s.voice.stereo() {
                     // Balance: turn down the far side.
@@ -421,21 +457,19 @@ impl Engine {
                 };
                 l += yl * gl;
                 r += yr * gr;
-                let mono = 0.5 * (yl + yr);
-                send += mono;
-                s.env = mono.abs().max(s.env * 0.9995);
+                send += mono * s.monitor;
                 s.flash *= 0.9997;
                 if fx.flash {
                     s.flash = 1.0;
                 }
                 let note = fx.note.filter(|_| s.voice.external());
-                self.bus[idx * BLOCK + i] = mono;
                 if let Some((vel, hz)) = note {
                     self.push_event(idx, i, event::NOTE, vel, hz);
                 }
             }
             let (rl, rr) = self.reverb.tick(send * REVERB_SEND);
-            let (ol, or) = self.limiter.tick((l + rl) * self.master, (r + rr) * self.master);
+            let m = self.master_now;
+            let (ol, or) = self.limiter.tick((l + rl) * m, (r + rr) * m);
             self.out[i] = ol;
             self.out[BLOCK + i] = or;
             self.clock.advance();
@@ -706,6 +740,65 @@ mod tests {
         assert_eq!(e.events[2], event::NOTE);
         assert_eq!(e.events[1], 0.0);
         assert!((e.bus[5 * BLOCK]).abs() < 1e-6); // L + R cancel in the mono bus
+    }
+
+    /// A sustained, centred custom toy (no Pulse needed): a fixed 220 Hz sine.
+    fn drone(e: &mut Engine, slot: usize) {
+        e.add_toy(slot, kind::CUSTOM);
+        scratch(e, &[-1.0, 0.0, 220.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0]);
+        e.set_law(slot, hypertoy_laws::law::FIXED, true).unwrap();
+        let w = [
+            1.0, 1.0, 1.0, // version, mono, one node
+            op::SINE as f32, 0.0, // sine, no args
+            1.0, 1.0, 0.0, 0.0, 1.0, // freq <- input 0
+            1.0, 2.0, 0.0, 0.0, 0.3, // out <- node 0 × 0.3
+        ];
+        let n = scratch(e, &w);
+        e.load_patch(slot, n, 1, 10.0).unwrap();
+        e.poke(slot, 1.0, 0.0);
+    }
+
+    /// Largest sample-to-sample step: a click shows up as a jump far above the
+    /// signal's own slope (a 220 Hz sine at 0.3 moves at most ~0.009 per sample).
+    fn max_step(x: &[f32]) -> f32 {
+        x.windows(2).fold(0.0f32, |m, w| m.max((w[1] - w[0]).abs()))
+    }
+
+    #[test]
+    fn monitor_mutes_what_you_hear_but_not_the_bus_or_the_visuals() {
+        let mut e = Engine::new(48_000.0);
+        drone(&mut e, 0);
+        let before = render(&mut e, 0.5);
+        assert!(peak(&before[before.len() - 4800..]) > 0.05);
+        let bus_before = peak(&e.bus[..BLOCK]);
+        e.set_param(0, param::MONITOR, 0.0);
+        let after = render(&mut e, 1.0);
+        // Ramps out with no click; only the shared reverb's tail is left after it.
+        assert!(max_step(&after[..480]) < 0.02, "click: {}", max_step(&after[..480]));
+        let (was, now) = (peak(&before[before.len() - 4800..]), peak(&after[after.len() - 4800..]));
+        assert!(now < 0.1 * was, "{now} vs {was}");
+        // Listening toys and the snapshot still see the toy at full level.
+        assert!((peak(&e.bus[..BLOCK]) - bus_before).abs() < 0.05 * bus_before);
+        assert!(e.snap[SNAP_HEADER + 1] > 0.05);
+    }
+
+    #[test]
+    fn gain_and_master_ramp_without_clicks() {
+        let mut e = Engine::new(48_000.0);
+        drone(&mut e, 0);
+        render(&mut e, 0.5);
+        e.set_param(0, param::GAIN, 0.2);
+        assert!(max_step(&render(&mut e, 0.05)) < 0.02);
+        e.set_param(0, param::GAIN, 1.0);
+        render(&mut e, 0.1);
+        e.master = 0.0;
+        let muted = render(&mut e, 0.3);
+        assert!(max_step(&muted[..480]) < 0.02);
+        assert!(peak(&muted[muted.len() - 4800..]) < 1e-3);
+        // The engine keeps running while muted: the beat moves on.
+        let beat = e.clock.beat;
+        render(&mut e, 0.1);
+        assert!(e.clock.beat > beat);
     }
 
     #[test]

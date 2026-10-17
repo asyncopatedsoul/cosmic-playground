@@ -10,6 +10,10 @@ import { toyEntry } from "./toys/registry";
 import type { DragHandler, PointerInfo, Toy } from "./toys/toy";
 import type { Chest } from "./ui/chest";
 import type { Hotbar } from "./ui/hotbar";
+import { toggleGlobalMute } from "./ui/hud";
+import type { ListenSheet } from "./ui/listen";
+import { toggleFocus, toggleMute, toggleSolo } from "./ui/sound";
+import type { SoundBadge } from "./ui/sound-badge";
 import type { ModeSwitch } from "./ui/modes";
 import type { PulseEditor } from "./ui/pulse-editor";
 import type { ToySnapshot, World } from "./world";
@@ -59,7 +63,12 @@ export interface InputDeps {
   hotbar: Hotbar;
   ghost: PlacementGhost;
   modes: ModeSwitch;
+  listen: ListenSheet;
+  badge: SoundBadge;
 }
+
+/** Holding H longer than this makes focus momentary: it ends on release. */
+const HOLD_MS = 350;
 
 const TAP_SLOP = 7;
 /** Toy bases closer than this overlap (two base radii). */
@@ -75,6 +84,8 @@ export class Input {
   private carry: Toy | null = null;
   /** Put-away toys, for Ctrl+Z. */
   private putAway: ToySnapshot[] = [];
+  /** When H went down on a toy that wasn't focused, for hold-to-focus. */
+  private focusHeld: { toy: Toy; at: number } | null = null;
 
   constructor(private d: InputDeps) {
     const c = d.stage.canvas;
@@ -87,6 +98,7 @@ export class Input {
     c.addEventListener("contextmenu", (e) => e.preventDefault());
     c.addEventListener("auxclick", (e) => e.preventDefault());
     addEventListener("keydown", (e) => this.key(e));
+    addEventListener("keyup", (e) => this.keyUp(e));
     d.chest.dropTarget = (x, y, kind) => {
       const i = d.avatar.active ? d.hotbar.slotAt(x, y) : null;
       if (i === null) return false;
@@ -374,6 +386,7 @@ export class Input {
       return;
     }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (this.listenKey(e)) return;
     if (avatar.active && /^Digit[1-9]$/.test(e.code)) {
       hotbar.select(Number(e.code.slice(5)) - 1);
       return;
@@ -430,6 +443,7 @@ export class Input {
         return;
       case "Escape":
         editor.close();
+        this.d.listen.toggle(false);
         return;
       case "KeyQ":
         toy?.nudge("twist", -0.03);
@@ -445,6 +459,46 @@ export class Input {
         }
         return;
     }
+  }
+
+  /** Listening keys (AUDIO-MIX.md §4.5): M, Shift+M, N, Shift+N, H, L, - and =. */
+  private listenKey(e: KeyboardEvent): boolean {
+    const { listen, world } = this.d;
+    const toy = this.target();
+    switch (e.code) {
+      case "KeyM":
+        if (e.shiftKey) world.mix.clearToys();
+        else {
+          this.d.audio.start();
+          toggleGlobalMute(world);
+        }
+        return true;
+      case "KeyN":
+        if (toy) (e.shiftKey ? toggleSolo : toggleMute)(world, toy);
+        return true;
+      case "KeyH":
+        if (toy && !e.repeat) {
+          const was = world.mix.focus === toy.id;
+          toggleFocus(world, toy);
+          this.focusHeld = was ? null : { toy, at: performance.now() };
+        }
+        return true;
+      case "KeyL":
+        listen.toggle();
+        return true;
+      case "Minus":
+      case "Equal":
+        toy?.setVolume(toy.volume + (e.code === "Minus" ? -0.05 : 0.05));
+        return true;
+    }
+    return false;
+  }
+
+  private keyUp(e: KeyboardEvent) {
+    const held = this.focusHeld;
+    if (e.code !== "KeyH" || !held) return;
+    this.focusHeld = null;
+    if (performance.now() - held.at > HOLD_MS && this.d.world.mix.focus === held.toy.id) toggleFocus(this.d.world, held.toy, false);
   }
 
   /** Per frame: move the avatar, refresh the aim, the carried toy, the ghost and the preview. */
@@ -471,6 +525,7 @@ export class Input {
     if (id && hit.kind === "surface") ghost.show(hit.point!, hit.normal!, toyEntry(id)!.color, this.canPlace(hit));
     else ghost.hide();
 
+    this.d.badge.update(hit.kind === "part" && hit.inReach ? hit.toy! : null);
     preview.update(hit, avatar.active ? avatar.hand() : null, this.label(hit, !!id), avatar.active ? { at: avatar.pos.clone(), dir: avatar.up() } : undefined);
   }
 

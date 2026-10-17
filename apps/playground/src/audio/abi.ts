@@ -9,6 +9,8 @@ export const Param = {
   StepsPerBeat: 3,
   Steps: 4,
   Speed: 5,
+  /** This listener's level for the toy (mute/solo/focus); after the bus tap. */
+  Monitor: 6,
   A: 8,
   B: 9,
   C: 10,

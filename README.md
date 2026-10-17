@@ -7,6 +7,7 @@ An all-ages, multiplayer playground for sound and geometry. You play with **hype
 - 🧭 **Help system plan:** [docs/HELP-SYSTEM.md](docs/HELP-SYSTEM.md) covers the cross-platform tutorial and anchored hints.
 - 🚀 **Publishing:** [docs/PUBLISHING.md](docs/PUBLISHING.md) covers CI, web and desktop releases, domains and the site/CMS.
 - 🎮 **itch.io test builds:** [docs/PUBLISHING-ITCH.md](docs/PUBLISHING-ITCH.md) covers pushing web and desktop builds to a restricted itch.io page with a hosted relay, for remote multiplayer testing.
+- 🧪 **Playtests:** [docs/PLAYTESTS.md](docs/PLAYTESTS.md) is the minimum build for remote (itch.io) and local (Windows, two gamepads) playtests; player and playtest guides live in [docs/guides/](docs/guides/README.md).
 - 🗺 **Feature plans, in priority order** ([PLAN.md §8.1](docs/PLAN.md#81-feature-plans-in-priority-order)):
   1. [docs/MULTIPLAYER.md](docs/MULTIPLAYER.md): browser and desktop jams over ngrok (next up)
   2. [docs/SAVE-LOAD.md](docs/SAVE-LOAD.md): Constellation save/load, toy variants in the chest

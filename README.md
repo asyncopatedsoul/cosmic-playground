@@ -5,6 +5,12 @@ An all-ages, multiplayer playground for sound and geometry. You play with **hype
 - 📐 **Plan:** [docs/PLAN.md](docs/PLAN.md) covers the experience, toy catalog, Rust + TypeScript architecture, multiplayer, modding SDK, prior art, go-to-market and roadmap.
 - 🛠 **Developing:** [docs/DEVELOPING.md](docs/DEVELOPING.md) covers setup, scripts, and sharing over ngrok for phones and Quest 3.
 - 🧭 **Help system plan:** [docs/HELP-SYSTEM.md](docs/HELP-SYSTEM.md) covers the cross-platform tutorial and anchored hints.
+- 🗺 **Feature plans, in priority order** ([PLAN.md §8.1](docs/PLAN.md#81-feature-plans-in-priority-order)):
+  1. [docs/MULTIPLAYER.md](docs/MULTIPLAYER.md): browser and desktop jams over ngrok (next up)
+  2. [docs/SAVE-LOAD.md](docs/SAVE-LOAD.md): Constellation save/load, toy variants in the chest
+  3. [docs/AUDIO-MIX.md](docs/AUDIO-MIX.md): global mute, toy mute/solo/focus, toy volume
+  4. [docs/TOY-BOOK.md](docs/TOY-BOOK.md): fullscreen gallery and details for every toy, playable and planned
+  5. [docs/AVATAR.md](docs/AVATAR.md): Minecraft-creative avatar, gravity bodies, crosshair aiming and ray preview
 
 Status: **Phase 0 toy prototype** (single player, desktop and touch).
 

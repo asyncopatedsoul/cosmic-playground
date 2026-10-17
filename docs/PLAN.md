@@ -18,7 +18,7 @@ Status: planning draft · Oct 2026
 | Platform strategy | **Web first.** One codebase serves desktop, touch, gamepad and WebXR (Quest 3 VR and mixed reality). Store builds are thin wrappers. |
 | Engine | A **Rust core** (deterministic simulation, clock/scheduler, DSP) compiled to WASM. It runs in an AudioWorklet and a Worker. A **TypeScript shell** with a three.js renderer (WebGPU, falling back to WebGL2) handles input and XR. |
 | Needle Engine | Use it as an **optional authoring and integration adapter**, not a dependency of the open core. It's built on three.js, so it fits well, but commercial use needs a paid Needle license. |
-| Multiplayer | Sync **state, not audio.** A shared CRDT world document plus a shared beat clock. Each client renders audio locally and deterministically, and events are scheduled a little ahead of time so everyone hears the same thing. |
+| Multiplayer | **Next priority** ([MULTIPLAYER.md](MULTIPLAYER.md)). Sync **state, not audio.** A shared CRDT world document (Yjs for v1) plus a shared beat clock. Each client renders audio locally and deterministically, and events are scheduled a little ahead of time so everyone hears the same thing. First target: browser and desktop players jamming over a free ngrok tunnel. |
 | Modding | Four tiers: **remix in-world → node graph → TypeScript SDK → Rust/Faust DSP and WGSL/TSL shaders.** It has a browser IDE (the "Toy Forge") with hot reload straight into a headset. |
 | Licensing | Core engine and SDK under **MIT/Apache-2.0**. The flagship app is open too, but the brand and official art are reserved. Toys made by the community use their creators' licenses (CC BY by default). |
 | Go to market | Open-source launch around a **game jam** and a **streamed improv performance**. Revenue comes from hosted rooms, education, installations and creator-marketplace fees, not from license fees on the core. |
@@ -198,6 +198,8 @@ Every device maps to a small set of **intents**. Toys only ever see intents, nev
 - **Interop:** MIDI-out (Web MIDI) and OSC through a companion bridge, so performers can drive DAWs. Also clock sync with Ableton Link through a bridge.
 
 ### 4.6 Multiplayer
+
+The detailed, prioritised plan is [MULTIPLAYER.md](MULTIPLAYER.md): a WebSocket relay mounted on the same server as the page (one origin, one tunnel), a Yjs document shaped like the saved world, clock slewing in the engine, and a test matrix of browser and desktop builds over ngrok and Cloudflare quick tunnels. This section is the long-term shape.
 
 - **Topology:** a room is a **CRDT document** (with Loro or Yjs) holding the toys, their parameters, couplings, Tuning and Pulse settings. Transport is WebRTC data channels in a mesh for small rooms (≤6), with a relay or SFU-style fan-out (WebSocket/WebTransport) for bigger rooms and spectators.
 - **Clock:** an NTP-style offset estimate against the room host or server. All musical events are scheduled at **beat-quantized future times** (a lookahead of about 100–250 ms), so every client plays the same event at the same musical moment. Live pokes are quantized optionally (on for kids, off for experts).
@@ -392,14 +394,28 @@ open-source core ─► jams create toys ─► performances showcase toys ─�
 
 ## 8. Roadmap
 
+**Reprioritised Oct 17, 2026:** multiplayer ("Together") moves ahead of XR. Playing together over a link is the core of the pitch (pillar 6, the Hyperjam go-to-market), it can be tested today on the browser and desktop builds over a free tunnel, and every other feature plan has a shared-vs-local decision that is cheaper to make before those features exist. XR follows, and inherits rooms for free.
+
 | Phase | Duration | Scope | Exit criteria |
 |---|---|---|---|
-| **0. Toy prototype** | 6 wks | Rust core + DSP in an AudioWorklet; 3 toys (Spire, Orrery, Kettle); desktop and touch; single player; Pulse v1 | Testers keep playing for 10+ minutes; audio has no dropouts on a mid-range phone |
-| **1. XR** | 8 wks | WebXR on Quest 3: hands and controllers, chest, MR passthrough and anchors; the three.js vs Needle bake-off; 8 toys; coupling v1 | 90 fps holds with 12 toys auto-playing; a 6-year-old and a 60-year-old can both use it without instructions |
-| **2. Together** | 8 wks | CRDT rooms, clock sync, spectator mode, Constellation save/share, embed component | 4 players across Quest, desktop and phone stay beat-locked within one audio block |
-| **3. Creators** | 10 wks | SDK v0, Toy Forge, CLI, `.htoy`, sandbox, docs-as-toys; port the official toys to the SDK | An outside dev ships a new toy in under 1 day |
+| **0. Toy prototype** | 6 wks | Rust core + DSP in an AudioWorklet; 3 toys (Spire, Orrery, Kettle); desktop and touch; single player; Pulse v1. *Largely done, plus data toys, Faust/VMA and tunings ([AUDIO-GEN.md](AUDIO-GEN.md) §14) and a minimal Tauri shell.* | Testers keep playing for 10+ minutes; audio has no dropouts on a mid-range phone |
+| **1. Together** ← next | 8 wks | [MULTIPLAYER.md](MULTIPLAYER.md) M0–M5: relay on the page's own server, Yjs rooms, clock sync, pokes on a shared beat, presence, Host/Join over ngrok or cloudflared, browser + desktop. Alongside: [SAVE-LOAD.md](SAVE-LOAD.md) S1–S3 (WorldDoc is the room document), [AUDIO-MIX.md](AUDIO-MIX.md) A1–A4 (local mute/solo/focus, shared volume). | Browser and desktop players on different networks jam through a free tunnel, beat-locked within 10 ms; late join and reconnect work |
+| **2. XR** | 8 wks | WebXR on Quest 3: hands and controllers, chest, MR passthrough and anchors; the three.js vs Needle bake-off; 8 toys; coupling v1; Quest joins rooms. [AVATAR.md](AVATAR.md) V1–V3 (avatar, gravity bodies) lands before or alongside, since XR locomotion reuses it. | 90 fps holds with 12 toys auto-playing; a 6-year-old and a 60-year-old can both use it without instructions |
+| **2b. Together, full** | 4 wks | [MULTIPLAYER.md](MULTIPLAYER.md) M6–M7: desktop-native host, spectator mode, larger rooms, embed component | 4 players across Quest, desktop and phone stay beat-locked within one audio block |
+| **3. Creators** | 10 wks | SDK v0, Toy Forge, CLI, `.htoy`, sandbox, docs-as-toys; port the official toys to the SDK; [TOY-BOOK.md](TOY-BOOK.md) community entries | An outside dev ships a new toy in under 1 day |
 | **4. Open launch** | 4 wks | License, contribution guide, governance, launch Hyperjam, Jam #1 | 100 community toys within 3 months |
 | **5. Sustain** | ongoing | Cosmic Cloud, education edition, installations, marketplace, native wrappers | Sustainable revenue covering the core team |
+
+### 8.1 Feature plans, in priority order
+
+| # | Plan | Why this position | Can run in parallel |
+|---|---|---|---|
+| 1 | [MULTIPLAYER.md](MULTIPLAYER.md) | The pitch; decides shared vs local for everything below | — (critical path: M0 → M1 → M2 → M3) |
+| 2 | [SAVE-LOAD.md](SAVE-LOAD.md) | S1 (WorldDoc, stable toy ids) is multiplayer M1's prerequisite | S2–S4 alongside M2–M3 |
+| 3 | [AUDIO-MIX.md](AUDIO-MIX.md) | Small; jams with 8 toys need mute/solo; engine changes are best made with M1's | Any time; ideally before the first multiplayer playtest |
+| 4 | [TOY-BOOK.md](TOY-BOOK.md) | B1–B2 are pure UI and content; B3 needs AUDIO-MIX A1 | B1–B2 any time |
+| 5 | [AVATAR.md](AVATAR.md) | V0 (Aim service, ray preview) is small and useful now; V1+ after M2 so poses, orientation and bodies go straight into the room doc | V0 any time |
+| — | [HELP-SYSTEM.md](HELP-SYSTEM.md), [DESKTOP-MIDI.md](DESKTOP-MIDI.md) | Unchanged; the help system's event bus also serves the Toy Book's "Try this" and multiplayer presence | — |
 
 ---
 
@@ -433,7 +449,7 @@ open-source core ─► jams create toys ─► performances showcase toys ─�
 ## 11. Open decisions
 
 1. Which renderer the flagship uses: **plain three.js vs Needle Engine.** Settle it with the Phase 1 bake-off on MR quality, iOS AR, and the cost of the commercial license.
-2. **Loro vs Yjs** for the room CRDT. Benchmark with the toy param workload (Loro is Rust-native and could share code with the core).
+2. **Loro vs Yjs** for the room CRDT. *Provisionally Yjs for v1* ([MULTIPLAYER.md](MULTIPLAYER.md) §0): the relay is Node, awareness covers presence, and `yrs` keeps a Rust relay possible. Revisit at multiplayer step M7 with the toy param workload benchmark (Loro is Rust-native and could share code with the core).
 3. Whether the flagship app is **MPL-2.0 or AGPL-3.0**. It depends on how much we worry about hosted forks.
 4. Whether **Faust** gets first-class support at Tier 3 or stays community-supported.
 5. Brand naming: keep "Cosmic Playground" as the product name and use "hypertoys" for the toy format and SDK (`@hypertoys/*`)?

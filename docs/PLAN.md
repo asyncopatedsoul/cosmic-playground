@@ -44,7 +44,7 @@ Status: planning draft · Oct 2026
  save/share a "Constellation" ◄── couple toys (beams/cables) ◄── set its Pulse (auto-play)
 ```
 
-- **The chest (library):** a physical object in the world. In VR it's a chest you open. On touch screens it's a drawer that slides up from the bottom edge. On desktop it's a hotbar plus the `Tab` key. Toys are grouped by **Principle families** (Vibration, Orbit, Wave, Growth, Reaction, Topology), not by instrument type.
+- **The chest (library):** a physical object in the world. In VR it's a chest you open. On touch screens it's a drawer that slides up from the bottom edge. On desktop it's a hotbar plus the `Tab` key. Toys are grouped by **Principle families** (Vibration, Orbit, Wave, Growth, Reaction, Topology), not by instrument type. Every toy maps to exactly one of the six; instrument-like *types* (organs, bells…) and *packs* (built in, community) are extra lenses in the Toy Book only ([TOY-BOOK.md](TOY-BOOK.md) §3.1).
 - **Placing:** toys sit on surfaces or float. In AR they sit on your real table, using mixed-reality plane and anchor detection.
 - **Poking:** direct manipulation. Strike, pluck, stretch, twist, spin, pour or throw.
 - **Pulse:** tap the toy's heart, a glowing core, and pick a pattern by *shape*, not by number (see §3.3).
@@ -415,6 +415,8 @@ open-source core ─► jams create toys ─► performances showcase toys ─�
 | 3 | [AUDIO-MIX.md](AUDIO-MIX.md) | Small; jams with 8 toys need mute/solo; engine changes are best made with M1's | Any time; ideally before the first multiplayer playtest |
 | 4 | [TOY-BOOK.md](TOY-BOOK.md) | B1–B2 are pure UI and content; B3 needs AUDIO-MIX A1 | B1–B2 any time |
 | 5 | [AVATAR.md](AVATAR.md) | V0 (Aim service, ray preview) is small and useful now; V1+ after M2 so poses, orientation and bodies go straight into the room doc | V0 any time |
+| 6 | [MODES.md](MODES.md) | Puzzle mode and the Heart; P0 (the `Mode` edit seam) is small and best landed before the room binding is written against it | P0–P1 alongside M1–M2; content (P3–P4) any time after |
+| 7 | [DEV-MODE.md](DEV-MODE.md) | Settings, logs, playtest notes, scenarios and CI; D0–D1 (muted dev start, logs) help debug multiplayer M2–M3, and D5 is MULTIPLAYER's headless jam | D0–D2 any time; D3 after SAVE-LOAD S1 is easiest |
 | — | [HELP-SYSTEM.md](HELP-SYSTEM.md), [DESKTOP-MIDI.md](DESKTOP-MIDI.md) | Unchanged; the help system's event bus also serves the Toy Book's "Try this" and multiplayer presence | — |
 
 ---

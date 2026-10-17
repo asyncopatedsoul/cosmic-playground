@@ -74,7 +74,8 @@ Nothing persists today: no `localStorage`, no IndexedDB.
       "pulse": { "enabled": true, "steps": 8, "prob": [1,0,0,1,0,0,1,0], "stepsPerBeat": 2, "speed": 1 },
       "pattern": "",
       "recipe": null,
-      "volume": 0.8                          // shared mix level (AUDIO-MIX.md §3)
+      "volume": 0.8,                         // shared mix level (AUDIO-MIX.md §3)
+      "wild": false                          // optional per-toy "don't snap" (MODES.md §7.1); omitted when false
     }
   ],
   "templates": { "v_2HXQ8M1C": { /* ToyTemplate, §6.1 */ } },
@@ -93,6 +94,8 @@ Notes:
 - **Kettle field.** v1 doesn't save the reaction-diffusion field; a reopened Kettle starts calm and refills from its Pulse. v2 option: a quantized 128×128 PNG of the field (a few KB).
 - **Orrery** planets are its params (`p0`–`p3`), so they save as-is. Phases restart in step with the beat grid, as they do when launched.
 - **Slots** are not saved. Loading fills slots in `toys` order.
+- **View bookmark.** `view` is written by *Save* from the current orbit camera (azimuth, elevation, distance, target) and is **offered, never forced**: opening a world keeps your current camera and, when the saved view differs noticeably, shows a small "eye" chip for 8 s ("Jump to the saved view"). Tapping it eases the camera there over 0.6 s (instant under reduced motion). Avatar modes ignore it; rooms never move anyone's camera; dev test scenarios apply it directly through their own `app.camera` ([DEV-MODE.md](DEV-MODE.md) §6.1). A *Save view* item in the Constellation sheet updates only the bookmark.
+- **Cloud-ready.** The format has no field that assumes a local store: ids are random, thumbnails are inline, embedded configs make a file self-contained. Cosmic Cloud (PLAN §7.2) stores and syncs this same `WorldDoc` unchanged, as one more storage adapter (§5); a cloud copy is the file.
 - **Ids** are random 8-character base32 strings with a type prefix (`t_` toy, `v_` variant, `b_` body).
 - A JSON Schema file (`docs/schema/world.v1.json`) is generated from the TS types and used in tests; at runtime a small hand-written validator (no new dependency) checks types and ranges and clamps params to their `range`.
 
@@ -128,6 +131,7 @@ Notes:
 | **File export / import** | Download `<name>.constellation.json`; import via file picker or drag-and-drop onto the canvas | Native Save/Open dialogs (`tauri-plugin-dialog` + `tauri-plugin-fs`), default folder `Documents/Cosmic Playground`, double-click to open (file association, later) |
 | **Link** | Worlds that compress under ~6 KB go in the URL hash: `#w=` + base64url(deflate-raw(JSON)) via `CompressionStream`. Larger worlds: "too big for a link, share the file" (or a room, [MULTIPLAYER.md](MULTIPLAYER.md)). | Same link opens in the browser; desktop handles `cosmic://` later |
 | **Room** | The relay snapshots WorldDoc JSON ([MULTIPLAYER.md](MULTIPLAYER.md) §7) | same |
+| **Cloud** (later) | Cosmic Cloud ([PLAN.md](PLAN.md) §7.2) stores the same WorldDoc, unchanged; adapter `persist/cloud.ts` behind the same interface as the others. When and with which account model is decided with Cosmic Cloud, not here. | same |
 
 Requests for persistent storage (`navigator.storage.persist()`) after the first named save, so the browser doesn't evict saves under storage pressure.
 
@@ -156,6 +160,7 @@ Requests for persistent storage (`navigator.storage.persist()`) after the first 
 - A variant of a **built-in** toy (Spire, Orrery, Kettle) is state only.
 - A variant of a **data toy** can also carry an edited `ToyConfig` (a new recipe, a changed patch). It registers as its own entry with `extends: base`, so it plays even where the base config differs.
 - Variants of variants just copy: `base` always points to the root type, so the chest never grows deep trees.
+- **Look: tint and badge only in v1.** A variant can't change the toy's **Form** (shape, proportions, materials); it always looks like its base, recoloured by `tint` and marked by `badge`. A data-toy variant's edited `config` may change voice, law and params but its `form` block must equal the base's (the validator rejects a changed `form` with a readable message). Unknown fields, such as a future `form` override, are kept and saved back, so a later build can add Form variants without breaking v1 files.
 
 ### 6.2 Making one
 
@@ -218,8 +223,10 @@ S1 is on the multiplayer critical path ([MULTIPLAYER.md](MULTIPLAYER.md) M1). S2
 
 ---
 
-## 11. Open questions
+## 11. Decisions (formerly open questions, resolved Oct 2026)
 
-1. Should a world remember the **camera view**? This plan saves it as an optional bookmark that's offered, not forced.
-2. Cloud saves (Cosmic Cloud, PLAN §7.2) reuse WorldDoc unchanged; when and with what account model is out of scope here.
-3. Should variants be able to change the **Form** (a re-coloured, re-proportioned shape)? Tint and badge only for v1.
+1. **Camera view.** Saved as an optional `view` bookmark that's offered (an "eye" chip), never forced (§3).
+2. **Cloud saves.** Cosmic Cloud reuses `WorldDoc` unchanged, as one more storage adapter (§3, §5). Timing and account model belong to the Cosmic Cloud plan.
+3. **Variant Form.** Tint and badge only for v1; `form` changes are rejected in v1 and unknown fields are preserved for later (§6.1).
+
+Implementation steps: [REVISIONS.md](REVISIONS.md) §3.

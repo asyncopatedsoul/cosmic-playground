@@ -140,7 +140,7 @@ Every device maps to a small set of **intents**. Toys only ever see intents, nev
 
 - One build reaches Quest 3 (Meta Quest Browser, plus installable PWAs on Quest), desktop, Android and iOS (non-XR modes), and links on Discord and streams.
 - Sharing is a URL, and so are jams. That matters a lot for community growth.
-- Native wrappers (Tauri for desktop, Capacitor for mobile, a PWA for the Quest store) can be added later without a rewrite.
+- Native wrappers (Tauri for desktop and, pending a spike, Tauri 2 mobile instead of Capacitor; a PWA for the Quest store) can be added later without a rewrite. Phone-hosted local play ([LOCAL-MULTIPLAYER.md](LOCAL-MULTIPLAYER.md)) pulls the mobile wrapper forward ([PUBLISHING.md](PUBLISHING.md) §5.1).
 
 ### 4.2 Layers
 
@@ -417,6 +417,7 @@ open-source core ─► jams create toys ─► performances showcase toys ─�
 | 5 | [AVATAR.md](AVATAR.md) | V0 (Aim service, ray preview) is small and useful now; V1+ after M2 so poses, orientation and bodies go straight into the room doc | V0 any time |
 | 6 | [MODES.md](MODES.md) | Puzzle mode and the Heart; P0 (the `Mode` edit seam) is small and best landed before the room binding is written against it | P0–P1 alongside M1–M2; content (P3–P4) any time after |
 | 7 | [DEV-MODE.md](DEV-MODE.md) | Settings, logs, playtest notes, scenarios and CI; D0–D1 (muted dev start, logs) help debug multiplayer M2–M3, and D5 is MULTIPLAYER's headless jam | D0–D2 any time; D3 after SAVE-LOAD S1 is easiest |
+| 8 | [LOCAL-MULTIPLAYER.md](LOCAL-MULTIPLAYER.md) | Couch play (mouse, gamepads, phone pads on one screen) and phone-hosted tables; seats (L0) touch Aim, undo and presence, so best after MULTIPLAYER M2 and the `intents.ts` split | L0–L2 alongside M3; L5 needs no native work; the mobile spike (PUBLISHING T0) any time |
 | — | [HELP-SYSTEM.md](HELP-SYSTEM.md), [DESKTOP-MIDI.md](DESKTOP-MIDI.md) | Unchanged; the help system's event bus also serves the Toy Book's "Try this" and multiplayer presence | — |
 
 ---

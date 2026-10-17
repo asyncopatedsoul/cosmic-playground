@@ -21,6 +21,7 @@ Status: **in progress** (relay, shared world, presence, roles and lock implement
 | Clock | The relay is the time authority. NTP-style offset estimate on join and every few seconds; each engine **slews** its beat clock to the room beat. |
 | Desktop | The Tauri app joins by link like a browser. A later step lets the desktop app **host** (Rust relay + the ngrok Rust SDK) with no Node install. |
 | Build lock | Clients must run the **same engine build** to stay deterministic. The handshake compares a build id and refuses mismatches with a clear message. |
+| Local play | Several players on one client (mouse, gamepads, phone pads) and phone-hosted tables are planned in [LOCAL-MULTIPLAYER.md](LOCAL-MULTIPLAYER.md). It adds **seats** (one client, many players), counts seats toward the 8-player cap, and reuses this relay. |
 | Why first | Every other plan here (avatars, save/load, audio controls, toy book) has a multiplayer consequence. Deciding the shared/local split now avoids reworking them. |
 
 ---
@@ -93,7 +94,7 @@ Status: **in progress** (relay, shared world, presence, roles and lock implement
   - the same plugin works for `npm run dev` on a LAN laptop.
 - A standalone entry (`node apps/relay/server.mjs --port 8787 --static apps/playground/dist`) serves the built app plus the relay for anyone who wants a long-running host without Vite.
 - **Per room:** a `Y.Doc`, an `Awareness`, a member list (≤ 8), and a time origin. A room is created on first join and dropped 10 minutes after the last member leaves, after writing a snapshot (§7).
-- **Messages** (one binary socket, first byte = channel): `0` Yjs sync, `1` awareness, `2` events, `3` time ping/pong, `4` control (hello, build id, kick, errors). Small, versioned, msgpack-free (Yjs already encodes binary; events are a tiny fixed layout).
+- **Messages** (one binary socket, first byte = channel): `0` Yjs sync, `1` awareness, `2` events, `3` time ping/pong, `4` control (hello, build id, kick, errors), and later `5` signal (member-to-member WebRTC signalling for phone pads, [LOCAL-MULTIPLAYER.md](LOCAL-MULTIPLAYER.md) §6.3). Small, versioned, msgpack-free (Yjs already encodes binary; events are a tiny fixed layout).
 - **Limits** (the URL is public while the tunnel is up): max 8 members per room, max 20 rooms, 64 KB max message, per-client rate limit (events ≤ 60/s, doc updates ≤ 120/s), unknown channel → disconnect. Rooms need a 6-letter code from an unambiguous alphabet; there is no room list.
 
 ### 3.3 The client: `src/net/`

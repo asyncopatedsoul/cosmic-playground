@@ -418,6 +418,7 @@ open-source core ─► jams create toys ─► performances showcase toys ─�
 | 6 | [MODES.md](MODES.md) | Puzzle mode and the Heart; P0 (the `Mode` edit seam) is small and best landed before the room binding is written against it | P0–P1 alongside M1–M2; content (P3–P4) any time after |
 | 7 | [DEV-MODE.md](DEV-MODE.md) | Settings, logs, playtest notes, scenarios and CI; D0–D1 (muted dev start, logs) help debug multiplayer M2–M3, and D5 is MULTIPLAYER's headless jam | D0–D2 any time; D3 after SAVE-LOAD S1 is easiest |
 | 8 | [LOCAL-MULTIPLAYER.md](LOCAL-MULTIPLAYER.md) | Couch play (mouse, gamepads, phone pads on one screen) and phone-hosted tables; seats (L0) touch Aim, undo and presence, so best after MULTIPLAYER M2 and the `intents.ts` split | L0–L2 alongside M3; L5 needs no native work; the mobile spike (PUBLISHING T0) any time |
+| 9 | [FOCUS-VIEW.md](FOCUS-VIEW.md) | Focus view (selected toys on a ring, Pitch Trace, recording, presets) and the Conductor shelf; F3 shares note events with MODES P1, recording and presets sit on SAVE-LOAD S2 | F1–F4 any time; F5+ after SAVE-LOAD S2; room replay after M3 |
 | — | [HELP-SYSTEM.md](HELP-SYSTEM.md), [DESKTOP-MIDI.md](DESKTOP-MIDI.md) | Unchanged; the help system's event bus also serves the Toy Book's "Try this" and multiplayer presence | — |
 
 ---

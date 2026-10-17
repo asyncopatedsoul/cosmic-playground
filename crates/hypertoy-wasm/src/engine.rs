@@ -91,6 +91,8 @@ struct Slot {
     monitor: f32,
     /// Per-toy wild: this toy's pitch isn't snapped (see `Ctx::wild`).
     wild: bool,
+    /// Report every note as an event (polyphonic toys feeding chord goals, MODES.md §3.3).
+    report_notes: bool,
 }
 
 impl Slot {
@@ -105,6 +107,7 @@ impl Slot {
             gain: 1.0,
             monitor: 1.0,
             wild: false,
+            report_notes: false,
         }
     }
 }
@@ -247,6 +250,7 @@ impl Engine {
         s.gain = 1.0;
         s.monitor = 1.0;
         s.wild = false;
+        s.report_notes = false;
         s.voice = match k {
             kind::SPIRE => Box::new(Spire::new(sr, slot)),
             kind::ORRERY => Box::new(Orrery::new()),
@@ -266,6 +270,13 @@ impl Engine {
         if let Some(s) = self.slots.get_mut(slot) {
             s.wild = wild;
             self.configure(slot);
+        }
+    }
+
+    /// Ask for (or stop) note events from one slot, beyond the external voices that always send them.
+    pub fn set_report_notes(&mut self, slot: usize, on: bool) {
+        if let Some(s) = self.slots.get_mut(slot) {
+            s.report_notes = on;
         }
     }
 
@@ -330,8 +341,8 @@ impl Engine {
         if fx.flash {
             s.flash = 1.0;
         }
-        if let Some((vel, hz)) = fx.note {
-            if s.voice.external() {
+        if s.voice.external() || s.report_notes {
+            for &(vel, hz) in fx.notes() {
                 self.push_event(slot, 0, event::NOTE, vel, hz);
             }
         }
@@ -474,9 +485,10 @@ impl Engine {
                 if fx.flash {
                     s.flash = 1.0;
                 }
-                let note = fx.note.filter(|_| s.voice.external());
-                if let Some((vel, hz)) = note {
-                    self.push_event(idx, i, event::NOTE, vel, hz);
+                if s.voice.external() || s.report_notes {
+                    for &(vel, hz) in fx.notes() {
+                        self.push_event(idx, i, event::NOTE, vel, hz);
+                    }
                 }
             }
             let (rl, rr) = self.reverb.tick(send * REVERB_SEND);
@@ -811,6 +823,59 @@ mod tests {
         let beat = e.clock.beat;
         render(&mut e, 0.1);
         assert!(e.clock.beat > beat);
+    }
+
+    /// NOTE events in the current event list for `slot`.
+    fn notes_for(e: &Engine, slot: usize) -> Vec<(f32, f32)> {
+        e.events[..e.n_events * EVENT_STRIDE]
+            .chunks_exact(EVENT_STRIDE)
+            .filter(|ev| ev[0] as usize == slot && ev[2] == event::NOTE)
+            .map(|ev| (ev[3], ev[4]))
+            .collect()
+    }
+
+    #[test]
+    fn subscribed_slots_report_every_note() {
+        let mut e = Engine::new(48_000.0);
+        e.add_toy(0, kind::KETTLE);
+        e.add_toy(1, kind::ORRERY);
+        e.set_param(1, param::A, 1.0);
+        e.set_param(1, param::B, 1.6);
+        // Not subscribed: built-in toys report nothing.
+        e.poke(0, 1.0, 0.0);
+        e.poke(1, 1.0, 0.0);
+        assert_eq!(e.n_events, 0);
+        // Subscribed: a Kettle poke is two bubbles, an Orrery poke rings both planets.
+        e.set_report_notes(0, true);
+        e.set_report_notes(1, true);
+        e.poke(0, 1.0, 0.0);
+        e.poke(1, 1.0, 0.0);
+        let kettle = notes_for(&e, 0);
+        let orrery = notes_for(&e, 1);
+        assert_eq!(kettle.len(), 2);
+        assert_eq!(orrery.len(), 2);
+        assert!(orrery[0].1 != orrery[1].1, "two planets, two pitches: {orrery:?}");
+        // Every reported pitch is a scale tone (the bubbles are snapped).
+        for &(_, hz) in kettle.iter().chain(&orrery) {
+            assert!((e.tuning.snap(hz) - hz).abs() < 1e-3, "{hz}");
+        }
+        e.clear_events();
+        // Pulse hits during a block are reported at their frame.
+        e.set_param(0, param::PULSE_ON, 1.0);
+        e.set_step(0, 0, 1.0);
+        e.process(BLOCK);
+        let first = notes_for(&e, 0);
+        assert_eq!(first.len(), 1, "the beat-0 step");
+        assert_eq!(e.events[1], 0.0, "at frame 0");
+        // Unsubscribing stops them; a new toy in the slot starts unsubscribed.
+        e.clear_events();
+        e.set_report_notes(0, false);
+        e.poke(0, 1.0, 0.0);
+        assert!(notes_for(&e, 0).is_empty());
+        e.set_report_notes(1, true);
+        e.add_toy(1, kind::KETTLE);
+        e.poke(1, 1.0, 0.0);
+        assert!(notes_for(&e, 1).is_empty());
     }
 
     #[test]

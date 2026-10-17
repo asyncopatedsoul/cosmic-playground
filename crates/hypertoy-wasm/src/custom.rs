@@ -145,7 +145,7 @@ impl Custom {
         };
         let vel = vel.clamp(0.0, 1.0);
         fx.flash = true;
-        fx.note = Some((vel, freq));
+        fx.note(vel, freq);
         match &mut self.body {
             Body::Patch { voices, next, gate_len } => {
                 let n = voices.len();

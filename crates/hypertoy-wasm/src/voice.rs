@@ -57,13 +57,32 @@ pub struct Tick {
     pub ext: (f32, f32),
 }
 
+/// Notes one Voice can start in a single sample (an Orrery poke rings every planet).
+pub const MAX_FX_NOTES: usize = 4;
+
 /// Side effects a Voice reports back to the engine.
 #[derive(Default)]
 pub struct Fx {
     /// Something visible just happened (a pluck, a bubble): flash the toy.
     pub flash: bool,
-    /// A note began (velocity, Hz): forwarded to external modules as an event.
-    pub note: Option<(f32, f32)>,
+    /// Notes that began (velocity, Hz): forwarded as events to external modules,
+    /// and to the host for slots that asked for them (MODES.md §3.3).
+    notes: [(f32, f32); MAX_FX_NOTES],
+    n_notes: usize,
+}
+
+impl Fx {
+    /// Report a note; beyond `MAX_FX_NOTES` in one sample, the rest are dropped.
+    pub fn note(&mut self, vel: f32, hz: f32) {
+        if self.n_notes < MAX_FX_NOTES {
+            self.notes[self.n_notes] = (vel, hz);
+            self.n_notes += 1;
+        }
+    }
+
+    pub fn notes(&self) -> &[(f32, f32)] {
+        &self.notes[..self.n_notes]
+    }
 }
 
 pub trait Voice {

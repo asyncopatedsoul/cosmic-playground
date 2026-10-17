@@ -14,6 +14,8 @@ export class AudioHost {
   snapTime = 0;
   onReady: (() => void) | null = null;
   onLoadError: ((slot: number, what: string, code: number, detail?: string) => void) | null = null;
+  /** Notes from slots subscribed with `{ t: "notes" }`: `[slot, beat, hz, vel]` per note (NOTE_STRIDE). */
+  onNotes: ((notes: Float32Array) => void) | null = null;
 
   private node: AudioWorkletNode | null = null;
   private pending: Command[] = [];
@@ -46,6 +48,7 @@ export class AudioHost {
       if (m.t === "snap") {
         this.snapshot = m.data;
         this.snapTime = performance.now();
+        if (m.notes) this.onNotes?.(m.notes);
       } else if (m.t === "ready") {
         this.ready = true;
         for (const c of this.pending) node.port.postMessage(c);
@@ -70,7 +73,7 @@ export class AudioHost {
       return;
     }
     // Before audio is up, keep only the latest value of each setting.
-    if (c.t === "param" || c.t === "step" || c.t === "tempo" || c.t === "tuning" || c.t === "master" || c.t === "pattern") {
+    if (c.t === "param" || c.t === "step" || c.t === "tempo" || c.t === "tuning" || c.t === "master" || c.t === "pattern" || c.t === "notes") {
       const same = this.pending.findIndex((p) => sameKey(p, c));
       if (same >= 0) this.pending.splice(same, 1);
     }
@@ -93,5 +96,5 @@ function sameKey(a: Command, b: Command): boolean {
   if (a.t === "param" && b.t === "param") return a.slot === b.slot && a.p === b.p;
   if (a.t === "step" && b.t === "step") return a.slot === b.slot && a.step === b.step;
   if (a.t === "pattern" && b.t === "pattern") return a.slot === b.slot;
-  return a.t === "tempo" || a.t === "tuning" || a.t === "master";
+  return a.t === "tempo" || a.t === "tuning" || a.t === "master" || a.t === "notes";
 }

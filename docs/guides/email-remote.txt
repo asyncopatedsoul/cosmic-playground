@@ -1,0 +1,35 @@
+Subject: Play Cosmic Playground with us online, {{DATE_SHORT}}
+
+Hi {{FIRST_NAME}},
+
+Thanks for helping test Cosmic Playground, a playground for sound and shapes where you play strange toys that follow real physics and music. This session is online: you'll play in one shared world with other testers in different places.
+
+WHEN
+{{DATE_TIME}} (about 45 minutes). Please open the game 5 minutes early.
+
+GET IN (do this any time before)
+1. Open {{ITCH_URL}}
+2. Password: {{ITCH_PASSWORD}}
+3. Browser: press "Run game", then fullscreen.
+   Windows app (optional): install it from the same page with the itch app, or download the zip and run "Cosmic Playground.exe". If Windows warns you, choose "More info", then "Run anyway".
+4. Click once in the world. You should hear a toy.
+5. Press the people button at the top. At the bottom it should say build {{BUILD_ID}}. If not, reload the page or restart the itch app.
+
+AT THE SESSION
+{{HOST_NAME}} will send a six-letter room code. Press the people button, type the code, press Join. If it says "Waking up the room server...", give it a minute.
+We'll talk on {{VOICE_CALL}} while we play. The game itself has no chat.
+
+YOU'LL NEED
+A computer with Chrome, Edge, Firefox or Safari (or Windows 10/11 for the app), and headphones or speakers. A game controller is a bonus: press any button on it once the game is open. No account needed.
+
+GOOD TO KNOW
+This is an early build. Rhythms aren't perfectly in step between computers yet, and other players' taps arrive a moment late. We'd love to hear how much that bothers you.
+
+AFTERWARDS
+Reply to this email with a few lines: what you enjoyed, what confused you, how long it took to get in, and anything that broke (with the time it happened). The full list of questions is in the guide:
+{{GUIDE_URL_REMOTE}}
+
+Please don't share the link or password.
+
+See you there,
+{{SENDER_NAME}}

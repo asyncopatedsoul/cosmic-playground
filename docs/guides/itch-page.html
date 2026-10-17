@@ -1,0 +1,60 @@
+<!--
+  itch.io page body for the restricted playtest page.
+  Paste into Edit game → Description (switch the editor to HTML with the </> button).
+  itch keeps h2/h3, p, ul/ol, table, strong/em, a, code and img; it drops scripts, styles and classes.
+  Replace {{PLACEHOLDERS}} before saving. Source of truth: docs/guides/ (USER-GUIDE, PLAYTEST-*.md).
+-->
+<p><strong>Cosmic Playground</strong> is an all-ages playground for sound and shapes. You play with <em>hypertoys</em>: strange toys that follow real rules of physics and music. Tap them, stretch them, give them a rhythm, and listen to what they make together. Play alone, with a friend on the same computer, or with friends somewhere else.</p>
+
+<p><strong>This is a private playtest build</strong> (build <code>{{BUILD_ID}}</code>). Things are rough. Please don't share the password.</p>
+
+<h2>Play</h2>
+<ul>
+  <li><strong>In your browser:</strong> press <em>Run game</em> above, then the fullscreen button. Works in Chrome, Edge, Firefox and Safari.</li>
+  <li><strong>Windows app:</strong> install with the <a href="https://itch.io/app">itch app</a> (it updates itself) or download the Windows zip below. If Windows says "Windows protected your PC", choose <em>More info → Run anyway</em>.</li>
+  <li>Click once in the world to start the sound.</li>
+</ul>
+
+<h2>The toys</h2>
+<ul>
+  <li><strong>Monochord Spire</strong>: a string. Tap it; drag the cap to stretch, turn the gold peg to tighten, tap a bead for a harmonic.</li>
+  <li><strong>Kepler Orrery</strong>: planets that chime as they pass. Drag them in and out; drag out of the sun to launch one.</li>
+  <li><strong>Reaction Kettle</strong>: a bubbling chemical pattern. Drag across it to pour; turn the rim to change the mix.</li>
+</ul>
+<p>Tap a toy's <strong>pink heart</strong> to give it a <strong>Pulse</strong>, a rhythm it plays by itself. The bar at the top picks the scale so every toy fits together. Get more toys from the <strong>chest</strong> at the bottom; drop a toy on the chest to put it away.</p>
+
+<h2>Controls</h2>
+<table>
+  <tr><th></th><th>Mouse / keyboard</th><th>Gamepad (new)</th></tr>
+  <tr><td>Join</td><td>always player 1</td><td>press any button</td></tr>
+  <tr><td>Play a toy</td><td>click (Space: last toy)</td><td>A / ✕</td></tr>
+  <tr><td>Move a toy</td><td>drag its base</td><td>hold A on the base, left stick</td></tr>
+  <tr><td>Stretch</td><td>drag a handle, scroll, [ ]</td><td>RT / LT</td></tr>
+  <tr><td>Twist</td><td>Alt-drag, Q / E</td><td>right stick on a toy</td></tr>
+  <tr><td>Camera</td><td>drag / scroll empty space</td><td>right stick on empty space</td></tr>
+  <tr><td>Rhythm on/off</td><td>pink heart</td><td>X / □</td></tr>
+  <tr><td>Add a toy</td><td>chest (Tab)</td><td>Y / △, LB/RB, A</td></tr>
+  <tr><td>Put away</td><td>drop on chest, Delete; Ctrl+Z undo</td><td>hold B / ○; View to undo</td></tr>
+  <tr><td>Sound</td><td>M mute all, N mute toy, H listen close</td><td>D-pad</td></tr>
+  <tr><td>Avatar</td><td>C, then WASD, Space</td><td>(mouse only for now)</td></tr>
+</table>
+
+<h2>Play together</h2>
+<h3>On one computer</h3>
+<p>Each player with a controller presses any button and gets a numbered ring in their own colour. Everyone shares the camera.</p>
+<h3>With friends somewhere else</h3>
+<ol>
+  <li>Press the <strong>people</strong> button at the top → <strong>Host a room</strong>.</li>
+  <li>Press <strong>Copy invite</strong> and send it, or read out the six-letter code.</li>
+  <li>Friends open this page (or the Windows app), press <strong>people</strong>, type the code, press <strong>Join</strong>.</li>
+</ol>
+<p>The room server naps when nobody's using it: the first join can take up to a minute ("Waking up the room server…"). Everyone needs the same build; if the game says "different version", reload this page or let the itch app update.</p>
+<p><em>Known in this build:</em> rhythms aren't perfectly in step between computers yet, and other players' pokes arrive a moment late. Saves made in the browser here may not last.</p>
+
+<h2>Playtesting</h2>
+<p>Thank you for helping! Your session guide is in the email you got. Tell us about bugs and ideas at <strong>{{FEEDBACK_CONTACT}}</strong> or in the comments below, with the <strong>build id</strong> from the people sheet.</p>
+<ul>
+  <li><a href="{{REPO_URL}}/blob/{{BRANCH}}/docs/guides/PLAYTEST-REMOTE.md">Remote playtest guide</a></li>
+  <li><a href="{{REPO_URL}}/blob/{{BRANCH}}/docs/guides/PLAYTEST-LOCAL.md">Local playtest guide (two gamepads)</a></li>
+  <li><a href="{{REPO_URL}}/blob/{{BRANCH}}/docs/guides/USER-GUIDE.md">Full player guide</a></li>
+</ul>

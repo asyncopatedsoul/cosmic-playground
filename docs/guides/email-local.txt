@@ -1,0 +1,37 @@
+Subject: Two-controller playtest of Cosmic Playground, {{DATE_SHORT}}
+
+Hi {{FIRST_NAME}},
+
+Thanks for hosting a playtest of Cosmic Playground, a playground for sound and shapes for all ages. This one is for two players on one Windows PC, each with a game controller.
+
+WHEN
+{{DATE_TIME}} (about 40 minutes), or any time that suits you before {{DEADLINE}}.
+
+YOU'LL NEED
+- A Windows 10 or 11 PC (a TV over HDMI is great)
+- Two game controllers: Xbox or PlayStation 4/5 work best, wired or Bluetooth
+- Speakers or the TV's sound
+
+SET UP
+1. Open {{ITCH_URL}} (password: {{ITCH_PASSWORD}}) and get the Windows version, either through the itch app (it updates itself) or by downloading the zip and running "Cosmic Playground.exe". If Windows warns you, choose "More info", then "Run anyway".
+2. Connect both controllers, start the game and click once inside the window.
+3. Each player presses any button on their controller. A coloured ring with a number appears for each: that's their cursor.
+4. Press the people button at the top: the build at the bottom should be {{BUILD_ID}}.
+
+PLAY
+Let the players explore for about 25 minutes. If they get stuck: A plays a toy, Y adds a toy, X starts its rhythm, hold B puts it away. The guide has all the controls and a few ideas to try.
+
+AFTERWARDS
+Please reply with:
+- what the players said they liked and found hard (the guide has five short questions),
+- your notes on anything they had to ask about,
+- which controllers you used and how they were connected,
+- the PC model and the build id.
+
+Full guide, with a facilitator checklist:
+{{GUIDE_URL_LOCAL}}
+
+Please don't share the link or password.
+
+Thank you!
+{{SENDER_NAME}}

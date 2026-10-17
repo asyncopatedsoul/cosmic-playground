@@ -114,6 +114,7 @@ class HypertoyProcessor extends AudioWorkletProcessor {
       case "param": return x.toy_set_param(e, c.slot, c.p, c.v);
       case "step": return x.toy_set_step(e, c.slot, c.step, c.prob);
       case "poke": return x.toy_poke(e, c.slot, c.strength, c.aux);
+      case "wild": return x.toy_set_wild(e, c.slot, c.wild ? 1 : 0);
       case "pattern": return this.check(c.slot, "pattern", x.toy_set_pattern(e, c.slot, this.text(c.text)), c.text);
       case "law":
         this.words(c.args);

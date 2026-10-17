@@ -126,7 +126,7 @@ export class Orrery extends Toy {
 
   update(dt: number, snap: SnapView | null, t: number) {
     super.update(dt, snap, t);
-    const wild = this.world.tuning.wild;
+    const wild = this.world.tuning.wild || this.wild;
     const bps = this.world.bpm / 60;
     for (let i = 0; i < PLANETS; i++) {
       const r = this.radius(i);

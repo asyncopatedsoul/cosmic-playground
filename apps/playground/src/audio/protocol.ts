@@ -67,6 +67,7 @@ export type Command =
   | { t: "master"; gain: number }
   | { t: "add"; slot: number; kind: number }
   | { t: "remove"; slot: number }
+  | { t: "wild"; slot: number; wild: boolean }
   | { t: "param"; slot: number; p: number; v: number }
   | { t: "step"; slot: number; step: number; prob: number }
   | { t: "poke"; slot: number; strength: number; aux: number }
@@ -109,6 +110,7 @@ export interface EngineExports {
   toy_set_param(e: number, slot: number, p: number, v: number): void;
   toy_set_step(e: number, slot: number, step: number, prob: number): void;
   toy_poke(e: number, slot: number, strength: number, aux: number): void;
+  toy_set_wild(e: number, slot: number, wild: number): void;
   toy_set_pattern(e: number, slot: number, len: number): number;
   toy_set_law(e: number, slot: number, law: number, wild: number): number;
   toy_load_patch(e: number, slot: number, len: number, voices: number, gate: number): number;

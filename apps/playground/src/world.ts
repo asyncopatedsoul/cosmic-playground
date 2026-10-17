@@ -9,7 +9,7 @@ import { toyEntry } from "./toys/registry";
 import { SnapView, type PulseState, type Toy } from "./toys/toy";
 
 /** What changed on a toy, for the multiplayer binding. */
-export type ToyEdit = "pos" | "params" | "pulse" | "pattern" | "volume";
+export type ToyEdit = "pos" | "params" | "pulse" | "pattern" | "volume" | "wild";
 
 /** Everything needed to make a toy again: put-away undo, and the shared room doc. */
 export interface ToySnapshot {
@@ -21,6 +21,8 @@ export interface ToySnapshot {
   pattern: string;
   /** The toy's level in the music (shared, saved); missing in old snapshots. */
   volume?: number;
+  /** Per-toy wild (MODES.md §7.1); omitted when false. */
+  wild?: boolean;
 }
 
 export interface WorldTuning {
@@ -131,6 +133,7 @@ export class World {
       pulse: { ...toy.pulse, prob: [...toy.pulse.prob] },
       pattern: toy.pattern,
       volume: toy.volume,
+      ...(toy.wild ? { wild: true } : {}),
     };
   }
 
@@ -149,6 +152,7 @@ export class World {
     if (s.pulse) toy.setPulse({ ...s.pulse, prob: [...s.pulse.prob] });
     if (s.pattern !== undefined && s.pattern !== toy.pattern) toy.setPattern(s.pattern);
     if (typeof s.volume === "number" && s.volume !== toy.volume) toy.setVolume(s.volume);
+    if (s.wild !== undefined) toy.setWild(s.wild);
   }
 
   get count() {

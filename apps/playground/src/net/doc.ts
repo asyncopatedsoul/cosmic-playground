@@ -12,7 +12,7 @@ const FLUSH_MS = 33;
  * Binds the World to the room's Y.Doc (docs/MULTIPLAYER.md §4):
  *
  *   world : Y.Map { init, bpm, root, scale, wild, locked }
- *   toys  : Y.Map<toyId, Y.Map { entry, pos, params: Y.Map, pulse, pattern, volume }>
+ *   toys  : Y.Map<toyId, Y.Map { entry, pos, params: Y.Map, pulse, pattern, volume, wild }>
  *
  * Local edits go into the doc (throttled); remote changes are applied to the
  * World with `world.applying` set. The first admin to sync an empty room seeds
@@ -153,6 +153,7 @@ export class WorldBinding {
         if (whats.has("pulse")) m.set("pulse", s.pulse);
         if (whats.has("pattern")) m.set("pattern", s.pattern);
         if (whats.has("volume")) m.set("volume", s.volume);
+        if (whats.has("wild")) m.set("wild", !!s.wild);
         if (whats.has("params")) {
           const params = m.get("params") as Y.Map<number>;
           for (const [k, v] of Object.entries(s.params)) if (params.get(k) !== v) params.set(k, v);
@@ -181,6 +182,7 @@ export class WorldBinding {
       pulse: JSON.stringify(s.pulse) !== JSON.stringify(toy.pulse) ? s.pulse : undefined,
       pattern: s.pattern,
       volume: s.volume,
+      wild: s.wild,
     });
   }
 
@@ -214,6 +216,7 @@ function toyMap(s: ToySnapshot): Y.Map<unknown> {
   m.set("pulse", s.pulse);
   m.set("pattern", s.pattern);
   m.set("volume", s.volume);
+  if (s.wild) m.set("wild", true);
   return m;
 }
 
@@ -227,5 +230,6 @@ function readToy(id: string, m: Y.Map<unknown>): ToySnapshot {
     pulse: m.get("pulse") as PulseState,
     pattern: String(m.get("pattern") ?? ""),
     volume: typeof m.get("volume") === "number" ? (m.get("volume") as number) : undefined,
+    wild: m.get("wild") === true,
   };
 }

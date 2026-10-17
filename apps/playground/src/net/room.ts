@@ -14,9 +14,19 @@ export interface RoomAddress {
   code: string;
   /** ws(s)://host, where the relay lives. */
   relay: string;
-  /** The page link to share (https://host/?room=CODE). */
+  /** The page link to share (https://host/?room=CODE), or the share URL, or "" when there's none. */
   link: string;
+  /** What *Copy invite* copies: the link, or "Go to <share url> and enter code K7QFZM". */
+  invite: string;
 }
+
+/**
+ * Build-time relay and share page (docs/PUBLISHING-ITCH.md §2). With a fixed
+ * relay, any page can host and bare codes join (itch's iframe, the desktop
+ * app); unset, the relay is the page's own origin, as with `npm run dev`.
+ */
+export const RELAY_URL = (import.meta.env.VITE_RELAY_URL ?? "").trim().replace(/\/+$/, "");
+export const SHARE_URL = (import.meta.env.VITE_SHARE_URL ?? "").trim();
 
 const ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 export const CODE = /^[A-HJKMNP-Z2-9]{6}$/;
@@ -28,15 +38,24 @@ export function newCode(): string {
 
 /** Whether this page was served by something that can also be a relay (dev/preview server, tunnel). */
 export function servedByRelay(): boolean {
-  const desktopAssets = location.hostname === "tauri.localhost" || location.protocol === "tauri:";
-  return !desktopAssets && (location.protocol === "http:" || location.protocol === "https:");
+  return !isDesktop() && (location.protocol === "http:" || location.protocol === "https:");
 }
 
-/** A room address from a pasted link or a bare code (the code needs a page served by a relay). */
+/** The desktop app's bundled assets (not its dev server). */
+function isDesktop(): boolean {
+  return location.hostname === "tauri.localhost" || location.protocol === "tauri:";
+}
+
+/** Whether this page can start a room: it's served by a relay, or the build names one. */
+export function canHost(): boolean {
+  return servedByRelay() || !!RELAY_URL;
+}
+
+/** A room address from a pasted link or a bare code (the code needs a relay: the page's own, or RELAY_URL). */
 export function parseRoom(input: string): RoomAddress | null {
   const text = input.trim();
   if (CODE.test(text.toUpperCase())) {
-    if (!servedByRelay()) return null;
+    if (!canHost()) return null;
     return address(new URL(location.href), text.toUpperCase());
   }
   try {
@@ -49,10 +68,17 @@ export function parseRoom(input: string): RoomAddress | null {
 }
 
 function address(base: URL, code: string): RoomAddress {
-  const relay = `${base.protocol === "https:" ? "wss" : "ws"}://${base.host}`;
-  const page = new URL(base.pathname.replace(/[^/]*$/, ""), base.origin);
-  page.searchParams.set("room", code);
-  return { code, relay, link: page.href };
+  const hosted = (base.protocol === "http:" || base.protocol === "https:") && base.hostname !== "tauri.localhost";
+  const relay = RELAY_URL || `${base.protocol === "https:" ? "wss" : "ws"}://${base.host}`;
+  // The desktop app's page (tauri://, tauri.localhost) has no link worth sharing.
+  let link = "";
+  if (hosted) {
+    const page = new URL(base.pathname.replace(/[^/]*$/, ""), base.origin);
+    page.searchParams.set("room", code);
+    link = page.href;
+  }
+  if (SHARE_URL) return { code, relay, link: SHARE_URL, invite: `Go to ${SHARE_URL} and enter code ${code}` };
+  return { code, relay, link, invite: link || `Join my Cosmic Playground room with code ${code}` };
 }
 
 /**
@@ -68,6 +94,10 @@ export class RoomSession {
   admin: number | null = null;
   /** Round-trip of the last time ping, ms. */
   rtt = 0;
+  /** Connections after the first successful one (the Room sheet's Details). */
+  reconnects = 0;
+  /** Why the last connection ended or failed, for Details. */
+  lastError = "";
   onStatus: (() => void) | null = null;
   /** The first full sync of each connection. */
   onSynced: (() => void) | null = null;
@@ -79,6 +109,9 @@ export class RoomSession {
   private closed = false;
   private retry = 0;
   private pinger = 0;
+  private readonly startedAt = performance.now();
+  private opened = false;
+  private failures = 0;
 
   constructor(
     readonly address: RoomAddress,
@@ -104,6 +137,15 @@ export class RoomSession {
 
   get isAdmin() {
     return this.admin === this.doc.clientID;
+  }
+
+  /**
+   * While the first connection keeps failing: "waking" (a sleeping relay takes
+   * up to a minute, docs/PUBLISHING-ITCH.md §5.1), then "unreachable" after 90 s.
+   */
+  get reach(): "waking" | "unreachable" | null {
+    if (this.opened || this.status !== "connecting" || this.failures === 0) return null;
+    return performance.now() - this.startedAt > 90_000 ? "unreachable" : "waking";
   }
 
   /** Hand the admin role to another player (admins only). */
@@ -136,6 +178,8 @@ export class RoomSession {
     this.ws = ws;
     let synced = false;
     ws.onopen = () => {
+      if (this.opened) this.reconnects++;
+      this.opened = true;
       this.retry = 0;
       this.control({ t: "hello", build: __BUILD_ID__, clientId: this.doc.clientID, name: this.name });
       const enc = encoding.createEncoder();
@@ -188,6 +232,8 @@ export class RoomSession {
     ws.onclose = (ev) => {
       clearInterval(this.pinger);
       if (this.closed) return;
+      if (!synced) this.failures++;
+      this.lastError = `${new Date().toLocaleTimeString()} closed ${ev.code}${ev.reason ? ` (${ev.reason})` : ""}`;
       // Remote players vanish while we're away; they come back with the next awareness sync.
       const others = [...this.awareness.getStates().keys()].filter((id) => id !== this.doc.clientID);
       awarenessProtocol.removeAwarenessStates(this.awareness, others, this);

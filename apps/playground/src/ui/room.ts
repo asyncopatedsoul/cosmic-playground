@@ -1,9 +1,10 @@
 import QRCode from "qrcode";
+import * as Y from "yjs";
 import type { Aim } from "../aim";
 import type { Avatar } from "../avatar/avatar";
 import { WorldBinding } from "../net/doc";
 import { localPlayer, PLAYER_COLORS, Presence } from "../net/presence";
-import { newCode, parseRoom, RoomSession, servedByRelay, type RoomAddress } from "../net/room";
+import { canHost, newCode, parseRoom, RELAY_URL, RoomSession, servedByRelay, SHARE_URL, type RoomAddress } from "../net/room";
 import { save } from "../prefs";
 import type { Stage } from "../render/stage";
 import type { World } from "../world";
@@ -11,10 +12,19 @@ import type { World } from "../world";
 const PEOPLE = `<svg viewBox="0 0 20 20"><circle cx="7" cy="7" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="14" cy="8" r="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M1.5 17c.5-3.5 3-5 5.5-5s5 1.5 5.5 5M12 12.4c3 0 5.6 1.3 6 4.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
 const MODE = { orbit: "◎", walk: "🚶", fly: "✈" } as const;
 
+/** One connected gamepad, for Details (controllers/gamepad.ts `connected`). */
+export interface PadInfo {
+  id: string;
+  mapping: string;
+  seat: number | null;
+}
+
 /**
  * Rooms (docs/MULTIPLAYER.md §6): the people button on the HUD opens a sheet
- * to host or join, shows the code, link and QR, the players, and for the
+ * to host or join, shows the code, invite and QR, the players, and for the
  * admin, the world lock and "make admin". `?room=CODE` in the URL joins.
+ * The footer shows the build id and a *Details* panel testers can copy
+ * (docs/PLAYTESTS.md R2; it replaces `?netdebug`, which can't reach itch's iframe).
  */
 export class RoomSheet {
   session: RoomSession | null = null;
@@ -23,6 +33,10 @@ export class RoomSheet {
   private me = localPlayer();
   private button: HTMLButtonElement;
   private sheet = document.createElement("section");
+  private details = false;
+  private refresh = 0;
+  /** Connected gamepads, listed in Details; set by main.ts. */
+  pads: (() => PadInfo[]) | null = null;
 
   constructor(
     hud: HTMLElement,
@@ -47,7 +61,7 @@ export class RoomSheet {
     this.sheet.addEventListener("click", (e) => this.click(e));
     this.sheet.addEventListener("change", (e) => this.change(e));
 
-    // ?room=CODE on a page served by a relay; ?join=<link> from the desktop app's --room option.
+    // ?room=CODE on a page served by a relay; ?join=<link or code> from the desktop app's --room option.
     const q = new URLSearchParams(location.search);
     const addr = q.get("join") ? parseRoom(q.get("join")!) : q.get("room") ? parseRoom(location.href) : null;
     if (addr) this.join(addr);
@@ -62,6 +76,12 @@ export class RoomSheet {
 
   update(dt: number) {
     this.presence?.update(dt);
+    // Status and Details change without a re-render (RTT, retries); patch them in place once a second.
+    this.refresh += dt;
+    if (this.refresh >= 1 && !this.sheet.hidden) {
+      this.refresh = 0;
+      this.renderLive();
+    }
   }
 
   join(addr: RoomAddress) {
@@ -97,6 +117,7 @@ export class RoomSheet {
   }
 
   private host() {
+    if (!canHost()) return;
     const addr = parseRoom(newCode());
     if (addr) this.join(addr);
   }
@@ -111,12 +132,17 @@ export class RoomSheet {
       const addr = parseRoom(input.value);
       if (addr) this.join(addr);
       else {
-        input.setCustomValidity(servedByRelay() ? "Type a 6-letter code or paste a room link" : "Paste the room link (https://…/?room=CODE)");
+        input.setCustomValidity(canHost() ? "Type a 6-letter code or paste a room link" : "Paste the room link (https://…/?room=CODE)");
         input.reportValidity();
       }
     }
     if (act === "leave") this.leave();
-    if (act === "copy" && this.session) void navigator.clipboard?.writeText(this.session.address.link);
+    if (act === "copy" && this.session) copy(el, this.session.address.invite);
+    if (act === "copy-details") copy(el, this.detailsText());
+    if (act === "details") {
+      this.details = !this.details;
+      this.render();
+    }
     if (act === "admin" && this.session) this.session.makeAdmin(Number(el.dataset.id));
     if (act === "close") this.toggle(false);
     if (act === "color") {
@@ -159,17 +185,23 @@ export class RoomSheet {
       this.sheet.innerHTML = `
         <header><h2>Play together</h2><button data-act="close" aria-label="Close">×</button></header>
         ${me}
-        ${servedByRelay() ? `<button class="room-primary" data-act="host">Host a room</button>` : `<p class="room-note">This window can join rooms; hosting runs from a browser tab or <code>npm run tunnel</code>.</p>`}
-        <div class="room-join"><input name="join" placeholder="${servedByRelay() ? "Code or link" : "Room link"}" aria-label="Room code or link" autocomplete="off"><button data-act="join">Join</button></div>`;
+        ${canHost() ? `<button class="room-primary" data-act="host">Host a room</button>` : `<p class="room-note">This window can join rooms; hosting runs from a browser tab or <code>npm run tunnel</code>.</p>`}
+        <div class="room-join"><input name="join" placeholder="${canHost() ? "Code or link" : "Room link"}" aria-label="Room code or link" autocomplete="off"><button data-act="join">Join</button></div>
+        ${this.footer()}`;
       return;
     }
-    const status = s.status === "online" ? `${Math.round(s.rtt)} ms` : s.status === "error" ? s.error : s.status === "connecting" ? "connecting…" : "offline";
+    const a = s.address;
+    const invite = SHARE_URL
+      ? `<p class="room-invite">Go to <b>${esc(SHARE_URL)}</b> and enter code <b>${a.code}</b></p><button data-act="copy">Copy invite</button>`
+      : a.link
+        ? `<div class="room-link"><input readonly value="${esc(a.link)}" aria-label="Room link"><button data-act="copy">Copy invite</button></div>`
+        : `<button data-act="copy">Copy invite</button>`;
     this.sheet.innerHTML = `
       <header><h2>Room</h2><button data-act="close" aria-label="Close">×</button></header>
-      <div class="room-code" aria-label="Room code">${s.address.code}</div>
-      <canvas class="room-qr" width="132" height="132"></canvas>
-      <div class="room-link"><input readonly value="${esc(s.address.link)}" aria-label="Room link"><button data-act="copy">Copy</button></div>
-      <p class="room-status ${s.status}">${esc(status)}</p>
+      <div class="room-code" aria-label="Room code">${a.code}</div>
+      ${a.link ? `<canvas class="room-qr" width="132" height="132"></canvas>` : ""}
+      ${invite}
+      <p class="room-status ${statusClass(s)}">${esc(statusText(s))}</p>
       ${me}
       <ul class="room-players">${players
         .map(({ id, state }) => {
@@ -180,9 +212,75 @@ export class RoomSheet {
         })
         .join("")}</ul>
       ${s.isAdmin ? `<label class="room-lock"><input type="checkbox" name="lock" ${locked ? "checked" : ""}> Lock the world (guests can play toys, not change them)</label>` : locked ? `<p class="room-note">🔒 The admin locked the world: play any toy; adding, moving and retuning are off.</p>` : ""}
-      <button data-act="leave">Leave room</button>`;
-    void QRCode.toCanvas(this.sheet.querySelector<HTMLCanvasElement>(".room-qr")!, s.address.link, { width: 132, margin: 1 });
+      <button data-act="leave">Leave room</button>
+      ${this.footer()}`;
+    const qr = this.sheet.querySelector<HTMLCanvasElement>(".room-qr");
+    if (qr) void QRCode.toCanvas(qr, a.link, { width: 132, margin: 1 });
   }
+
+  /** Build id, and the Details panel when it's open. */
+  private footer() {
+    return `
+      <footer class="room-foot"><button data-act="details" aria-expanded="${this.details}">Details</button><span>build <code>${esc(__BUILD_ID__)}</code></span></footer>
+      ${this.details ? `<pre class="room-details">${esc(this.detailsText())}</pre><button data-act="copy-details">Copy details</button>` : ""}`;
+  }
+
+  private renderLive() {
+    const s = this.session;
+    const status = this.sheet.querySelector<HTMLElement>(".room-status");
+    if (s && status) {
+      status.className = `room-status ${statusClass(s)}`;
+      status.textContent = statusText(s);
+    }
+    const details = this.sheet.querySelector<HTMLElement>(".room-details");
+    if (details) details.textContent = this.detailsText();
+  }
+
+  /** What a tester pastes into their report: build, relay, connection quality, pads. */
+  private detailsText() {
+    const s = this.session;
+    const lines = [
+      `build     ${__BUILD_ID__}`,
+      `relay     ${s?.address.relay ?? (RELAY_URL || "this page's server")}`,
+      ...(SHARE_URL ? [`page      ${SHARE_URL}`] : []),
+      `origin    ${location.origin}`,
+    ];
+    if (s) {
+      lines.push(
+        `room      ${s.address.code} · ${s.status}${s.isAdmin ? " · admin" : ""}`,
+        `rtt       ${s.status === "online" ? `${Math.round(s.rtt)} ms` : "–"}`,
+        `reconnect ${s.reconnects}`,
+        `last err  ${s.error || s.lastError || "none"}`,
+        `doc       ${(Y.encodeStateAsUpdate(s.doc).byteLength / 1024).toFixed(1)} KB · ${this.presence?.players().length ?? 0} players`,
+      );
+    } else lines.push("room      none");
+    const pads = this.pads?.() ?? [];
+    lines.push(`gamepads  ${pads.length || "none"}`);
+    for (const p of pads) lines.push(`  ${p.seat ? `seat ${p.seat}` : "no seat"} · ${p.mapping || "non-standard"} · ${p.id}`);
+    lines.push(`browser   ${navigator.userAgent}`);
+    return lines.join("\n");
+  }
+}
+
+function statusText(s: RoomSession): string {
+  if (s.status === "error") return s.error;
+  if (s.reach === "waking") return "Waking up the room server…";
+  if (s.reach === "unreachable") return "Can't reach the room server. Check your connection, or reload and try again.";
+  if (s.status === "online") return s.rtt ? `Online · ${Math.round(s.rtt)} ms` : "Online";
+  return s.status === "connecting" ? "Connecting…" : "Offline";
+}
+
+function statusClass(s: RoomSession): string {
+  return s.reach === "unreachable" ? "error" : s.status;
+}
+
+/** Copy text, and say so on the button for a moment. */
+function copy(button: HTMLElement, text: string) {
+  void navigator.clipboard?.writeText(text).then(() => {
+    const label = button.textContent;
+    button.textContent = "Copied";
+    setTimeout(() => (button.textContent = label), 1200);
+  });
 }
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);

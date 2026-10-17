@@ -6,6 +6,7 @@
   "license": "MPL-2.0",
   "main": "relay.mjs",
   "scripts": {
+    "start": "node server.mjs",
     "test": "node --test"
   },
   "dependencies": {

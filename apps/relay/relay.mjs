@@ -98,7 +98,7 @@ export function createRelay({ log = () => {} } = {}) {
   function join(room, ws, member, hello) {
     if (room.build === null || room.members.size === 0) room.build = hello.build;
     if (hello.build !== room.build) {
-      control(ws, { t: "error", code: "build", build: room.build, message: `This room runs a different version of Cosmic Playground (${room.build}). Update or reload.` });
+      control(ws, { t: "error", code: "build", build: room.build, message: `This room runs a different version of Cosmic Playground (${room.build}). Update in the itch app or reload the page.` });
       ws.close(4001, "build mismatch");
       return;
     }

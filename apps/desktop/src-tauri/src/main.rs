@@ -22,32 +22,37 @@ fn shell_info() -> ShellInfo {
     }
 }
 
-/// `--room <link>` joins a room on launch (docs/MULTIPLAYER.md §6.3): the page
-/// reads `?join=<link>`, since a release build has no address bar to paste into.
+/// `--room <link or CODE>` joins a room on launch (docs/MULTIPLAYER.md §6.3,
+/// docs/PUBLISHING-ITCH.md §2): the page reads `?join=…`, since a release build
+/// has no address bar to paste into. A bare code joins through the build's
+/// `VITE_RELAY_URL`; the page decides, so this only trims it.
 fn room_arg() -> Option<String> {
     let mut args = std::env::args().skip(1);
+    let mut value = None;
     while let Some(a) = args.next() {
         if a == "--room" {
-            return args.next();
+            value = args.next();
+            break;
         }
         if let Some(v) = a.strip_prefix("--room=") {
-            return Some(v.to_string());
+            value = Some(v.to_string());
+            break;
         }
     }
-    None
+    value.map(|v| v.trim().to_string()).filter(|v| !v.is_empty())
 }
 
 fn main() {
     tauri::Builder::default()
         .on_page_load(|webview, payload| {
-            // After the first load, reload once with ?join=<link> (navigating during
+            // After the first load, reload once with ?join=<link or code> (navigating during
             // setup is too early: the initial load replaces it).
             if payload.event() != PageLoadEvent::Finished || payload.url().query_pairs().any(|(k, _)| k == "join") {
                 return;
             }
-            if let Some(link) = room_arg() {
+            if let Some(room) = room_arg() {
                 let mut url = payload.url().clone();
-                url.query_pairs_mut().append_pair("join", &link);
+                url.query_pairs_mut().append_pair("join", &room);
                 let _ = webview.navigate(url);
             }
         })

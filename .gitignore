@@ -3,4 +3,5 @@ node_modules/
 dist/
 apps/desktop/src-tauri/gen/
 apps/playground/public/hypertoy.wasm
+apps/playground/public/modules/
 .DS_Store

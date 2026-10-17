@@ -1,7 +1,8 @@
 import * as THREE from "three";
 import { Kind, MAX_STEPS, Snap } from "../audio/protocol";
-import { toyEntry } from "../toys/registry";
+import { ConfigToy } from "../toys/config-toy";
 import { euclid, SnapView, type Toy } from "../toys/toy";
+import { RecipeBox } from "./recipe-box";
 import type { World } from "../world";
 
 const RING_R = 92;
@@ -31,6 +32,9 @@ export class PulseEditor {
   private svg: SVGSVGElement;
   private dots: SVGCircleElement[] = [];
   private lastStep = -1;
+  private script: HTMLInputElement;
+  private scriptError: HTMLElement;
+  private recipes: RecipeBox;
 
   constructor(private world: World) {
     this.el = document.getElementById("pulse")!;
@@ -42,12 +46,34 @@ export class PulseEditor {
         <button data-act="fewer" title="Fewer steps">${dotsIcon(3)}</button>
         <button data-act="spread" title="Spread the hits evenly">${spiralIcon()}</button>
         <button data-act="more" title="More steps">${dotsIcon(5)}</button>
-      </div>`;
+        <button data-act="script" title="Script the Pulse (mini-notation)">${scriptIcon()}</button>
+      </div>
+      <form class="pulse-script" hidden>
+        <input type="text" spellcheck="false" autocomplete="off" aria-label="Pulse pattern"
+          placeholder="x . x [x x]  <0 2> x(3,8)  x?">
+        <small class="pulse-script-error" role="status"></small>
+      </form>
+      <div class="pulse-recipes"></div>`;
     this.svg = this.el.querySelector("svg")!;
+    const form = this.el.querySelector<HTMLFormElement>(".pulse-script")!;
+    this.script = form.querySelector("input")!;
+    this.scriptError = form.querySelector(".pulse-script-error")!;
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      this.applyScript();
+    });
+    this.script.addEventListener("change", () => this.applyScript());
+    // Keys typed into the pattern must not reach the world's shortcuts.
+    this.script.addEventListener("keydown", (e) => e.stopPropagation());
+    this.recipes = new RecipeBox(this.el.querySelector(".pulse-recipes")!);
     this.el.querySelector(".pulse-close")!.addEventListener("click", () => this.close());
     this.el.querySelector(".pulse-shape")!.addEventListener("click", (e) => {
       const act = (e.target as HTMLElement).closest("button")?.dataset.act;
-      if (act) this.shape(act);
+      if (act === "script") {
+        const form = this.script.form!;
+        form.hidden = !form.hidden;
+        if (!form.hidden) this.script.focus();
+      } else if (act) this.shape(act);
     });
   }
 
@@ -60,13 +86,24 @@ export class PulseEditor {
     if (this.toy) this.toy.selected = false;
     this.toy = toy;
     toy.selected = true;
-    this.el.style.setProperty("--toy", toyEntry(toy.kind).color);
+    this.el.style.setProperty("--toy", toy.css);
     this.el.classList.toggle("continuous", toy.kind === Kind.Orrery);
     // Open on the side away from the toy so it stays visible while you edit.
     const camera = this.world.stage.camera;
     const x = toy.group.getWorldPosition(new THREE.Vector3()).project(camera).x;
     this.el.classList.toggle("right", x < 0);
     this.el.classList.add("open");
+    this.script.value = toy.pattern;
+    this.script.form!.hidden = !toy.pattern;
+    this.recipes.show(toy instanceof ConfigToy && toy.config.voice.engine === "zap" ? toy : null);
+    this.render();
+  }
+
+  private applyScript() {
+    const toy = this.toy;
+    if (!toy) return;
+    toy.setPattern(this.script.value);
+    if (toy.pattern && !toy.pulse.enabled) toy.setPulse({ enabled: true });
     this.render();
   }
 
@@ -83,6 +120,7 @@ export class PulseEditor {
     this.svg.replaceChildren();
     this.dots = [];
     this.lastStep = -1;
+    this.el.classList.toggle("scripted", !!toy.pattern);
 
     if (toy.kind !== Kind.Orrery) {
       for (let i = 0; i < p.steps; i++) {
@@ -168,11 +206,16 @@ export class PulseEditor {
     this.render();
   }
 
-  /** Light the dot under the playhead. */
+  /** Light the dot under the playhead (and show pattern errors). */
   update() {
     const toy = this.toy;
+    if (toy) {
+      const err = toy.patternError ?? "";
+      if (this.scriptError.textContent !== err) this.scriptError.textContent = err;
+      this.script.classList.toggle("bad", !!err);
+    }
     const data = this.world.audio.snapshot;
-    if (!toy || !data || !this.dots.length) return;
+    if (!toy || !data || !this.dots.length || toy.pattern) return;
     const step = new SnapView(data, toy.slot, 0).get(Snap.step);
     if (step === this.lastStep) return;
     this.dots[this.lastStep]?.classList.remove("now");
@@ -187,6 +230,10 @@ function dotsIcon(n: number) {
     return `<circle cx="${12 + 8 * Math.cos(a)}" cy="${12 + 8 * Math.sin(a)}" r="2.4"/>`;
   }).join("");
   return `<svg viewBox="0 0 24 24" fill="currentColor">${dots}</svg>`;
+}
+
+function scriptIcon() {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5M13 5l-2 14"/></svg>`;
 }
 
 function spiralIcon() {

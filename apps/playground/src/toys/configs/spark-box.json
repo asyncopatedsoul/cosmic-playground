@@ -1,0 +1,19 @@
+{
+  "id": "spark-box",
+  "name": "Spark Box",
+  "family": "Recipe",
+  "color": "#ffd166",
+  "icon": "<svg viewBox=\"0 0 48 48\"><path d=\"M8 18h32v24H8z\" stroke=\"currentColor\" stroke-width=\"3\" fill=\"none\"/><path d=\"M6 12h36v6H6z\" fill=\"currentColor\"/><path d=\"M24 2l-3 6h6l-3 6\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"none\"/></svg>",
+  "params": {
+    "pitch": { "range": [200, 1800], "default": 700, "unit": "Hz", "gesture": "stretch" },
+    "zing": { "range": [-4, 4], "default": 1, "gesture": "twist" }
+  },
+  "law": { "fn": "fixed", "args": { "freq": "pitch" } },
+  "voice": {
+    "engine": "zap",
+    "recipe": [1.2, 0.05, 900, 0, 0.04, 0.2, 1, 1.6, 0, 0, 600, 0.05],
+    "bind": { "slide": "zing" }
+  },
+  "pulse": { "pattern": "x(3,8) x?" },
+  "form": { "kind": "box", "size": "pitch" }
+}

@@ -1,15 +1,18 @@
 import * as THREE from "three";
 import type { AudioHost } from "./audio/host";
 import type { Fields } from "./audio/fields";
-import { MAX_TOYS, type KindId } from "./audio/protocol";
+import { describeLoadError, MAX_TOYS, SCALE_CUSTOM } from "./audio/protocol";
 import type { Stage } from "./render/stage";
 import { toyEntry } from "./toys/registry";
 import { SnapView, type Toy } from "./toys/toy";
 
 export interface WorldTuning {
   root: number;
+  /** A preset id, or SCALE_CUSTOM when a table or Scala file is loaded. */
   scale: number;
   wild: boolean;
+  /** Name of the custom table, when `scale` is SCALE_CUSTOM. */
+  custom?: string;
 }
 
 /** All toys in play plus the world's shared Tuning and tempo. */
@@ -29,12 +32,24 @@ export class World {
     this.setTempo(this.bpm);
     this.setTuning({});
     this.setMaster(this.master);
+    audio.onLoadError = (slot, what, code, detail) => {
+      const msg = describeLoadError(code) + (detail && what === "external" ? `: ${detail}` : "");
+      const toy = this.toys[slot];
+      if (toy && what === "pattern") toy.patternError = msg;
+      else console.warn(`toy ${slot} ${what}: ${msg}`);
+      this.onLoadError?.(slot, what, msg);
+    };
   }
 
-  add(kind: KindId, position?: THREE.Vector3): Toy | null {
+  /** A toy's Law, Voice or pattern failed to load. */
+  onLoadError: ((slot: number, what: string, message: string) => void) | null = null;
+
+  /** Place a toy from the registry by id (see toys/registry.ts). */
+  add(id: string, position?: THREE.Vector3): Toy | null {
     const slot = this.toys.indexOf(null);
-    if (slot < 0) return null;
-    const toy = toyEntry(kind).create(this, slot);
+    const entry = toyEntry(id);
+    if (slot < 0 || !entry) return null;
+    const toy = entry.create(this, slot);
     toy.init(position ?? this.freeSpot());
     this.stage.scene.add(toy.group);
     this.toys[slot] = toy;
@@ -76,8 +91,21 @@ export class World {
 
   setTuning(t: Partial<WorldTuning>) {
     Object.assign(this.tuning, t);
+    if (this.tuning.scale !== SCALE_CUSTOM) this.tuning.custom = undefined;
     const { root, scale, wild } = this.tuning;
     this.audio.send({ t: "tuning", root, scale, wild });
+  }
+
+  /** Any tuning as cents within a period (n-EDO, a Tonal scale, ...). */
+  setTuningTable(name: string, cents: number[], period = 1200) {
+    this.audio.send({ t: "tuningTable", period, cents });
+    this.setTuning({ scale: SCALE_CUSTOM, custom: name });
+  }
+
+  /** A Scala .scl file. */
+  setTuningScala(name: string, text: string) {
+    this.audio.send({ t: "scl", text });
+    this.setTuning({ scale: SCALE_CUSTOM, custom: name });
   }
 
   setMaster(gain: number) {

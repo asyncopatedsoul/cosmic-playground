@@ -72,6 +72,10 @@ export abstract class Toy {
   readonly pickables: THREE.Object3D[] = [];
   params: Record<string, number> = {};
   pulse: PulseState = { enabled: false, steps: 8, prob: euclid(3, 8), stepsPerBeat: 2, speed: 1 };
+  /** A scripted Pulse in mini-notation (e.g. "x . [x x] <x x*2>"); "" uses the ring. */
+  pattern = "";
+  /** Set when the engine rejects the pattern: where and why. */
+  patternError: string | null = null;
   selected = false;
 
   protected baseRadius = 0.6;
@@ -91,12 +95,22 @@ export abstract class Toy {
     this.build();
     this.group.position.copy(position);
     this.world.audio.send({ t: "add", slot: this.slot, kind: this.kind });
+    this.afterAdd();
     for (const name of Object.keys(this.defs)) this.sendParam(name);
     this.sendPulse();
+    if (this.pattern) this.setPattern(this.pattern);
     this.sendPan();
   }
 
+  /** Hook for toys that load more into their slot (Law, Voice) before params. */
+  protected afterAdd() {}
+
   protected abstract build(): void;
+
+  /** The toy's colour as CSS. */
+  get css() {
+    return `#${this.color.toString(16).padStart(6, "0")}`;
+  }
 
   private buildBase() {
     const r = this.baseRadius;
@@ -172,6 +186,13 @@ export abstract class Toy {
   setPulse(p: Partial<PulseState>) {
     Object.assign(this.pulse, p);
     this.sendPulse();
+  }
+
+  /** Script the Pulse with mini-notation, or clear it ("") to go back to the ring. */
+  setPattern(text: string) {
+    this.pattern = text.trim();
+    this.patternError = null;
+    this.world.audio.send({ t: "pattern", slot: this.slot, text: this.pattern });
   }
 
   private sendPulse() {

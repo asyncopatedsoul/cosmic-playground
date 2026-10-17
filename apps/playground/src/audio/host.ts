@@ -13,6 +13,7 @@ export class AudioHost {
   snapshot: Float32Array | null = null;
   snapTime = 0;
   onReady: (() => void) | null = null;
+  onLoadError: ((slot: number, what: string, code: number, detail?: string) => void) | null = null;
 
   private node: AudioWorkletNode | null = null;
   private pending: Command[] = [];
@@ -35,7 +36,8 @@ export class AudioHost {
       ctx.audioWorklet.addModule(workletUrl),
     ]);
     const node = new AudioWorkletNode(ctx, "hypertoy", {
-      numberOfInputs: 0,
+      // One input, used only when a listening toy asks for the microphone.
+      numberOfInputs: 1,
       numberOfOutputs: 1,
       outputChannelCount: [2],
     });
@@ -49,10 +51,14 @@ export class AudioHost {
         for (const c of this.pending) node.port.postMessage(c);
         this.pending = [];
         this.onReady?.();
+      } else if (m.t === "loadError") {
+        this.onLoadError?.(m.slot, m.what, m.code, m.detail);
       } else {
         console.error("audio engine:", m.message);
       }
     };
+    // Exceptions inside the worklet's process() only surface here.
+    node.onprocessorerror = (e) => console.error("audio engine crashed:", e);
     node.connect(ctx.destination);
     this.node = node;
     node.port.postMessage({ t: "wasm", bytes }, [bytes]);
@@ -64,11 +70,21 @@ export class AudioHost {
       return;
     }
     // Before audio is up, keep only the latest value of each setting.
-    if (c.t === "param" || c.t === "step" || c.t === "tempo" || c.t === "tuning" || c.t === "master") {
+    if (c.t === "param" || c.t === "step" || c.t === "tempo" || c.t === "tuning" || c.t === "master" || c.t === "pattern") {
       const same = this.pending.findIndex((p) => sameKey(p, c));
       if (same >= 0) this.pending.splice(same, 1);
     }
     this.pending.push(c);
+  }
+
+  private mic: MediaStreamAudioSourceNode | null = null;
+
+  /** Feed the microphone into the engine's input (for listening toys). Asks permission. */
+  async enableMic() {
+    if (this.mic || !this.ctx || !this.node) return;
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true } });
+    this.mic = this.ctx.createMediaStreamSource(stream);
+    this.mic.connect(this.node);
   }
 }
 
@@ -76,5 +92,6 @@ function sameKey(a: Command, b: Command): boolean {
   if (a.t !== b.t) return false;
   if (a.t === "param" && b.t === "param") return a.slot === b.slot && a.p === b.p;
   if (a.t === "step" && b.t === "step") return a.slot === b.slot && a.step === b.step;
+  if (a.t === "pattern" && b.t === "pattern") return a.slot === b.slot;
   return a.t === "tempo" || a.t === "tuning" || a.t === "master";
 }

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#04050d" />
+    <title>Toy Forge</title>
+  </head>
+  <body>
+    <main class="forge">
+      <header>
+        <h1>Toy Forge</h1>
+        <p>Write a hypertoy's Voice in <a href="https://faust.grame.fr" target="_blank" rel="noopener">Faust</a>, hear it, script its Pulse, send it to the <a href="./">playground</a>.</p>
+      </header>
+      <section class="forge-code">
+        <div class="forge-row">
+          <label>Example <select id="example"></select></label>
+          <label>Name <input id="name" value="FM bell" spellcheck="false" /></label>
+          <button id="compile" class="primary">Compile &amp; load</button>
+        </div>
+        <textarea id="source" spellcheck="false" aria-label="Faust source"></textarea>
+        <p id="status" role="status">Faust compiles in your browser; nothing is uploaded.</p>
+      </section>
+      <section class="forge-play">
+        <canvas id="meter" width="300" height="8" aria-hidden="true"></canvas>
+        <div class="forge-row">
+          <button id="strike">Strike</button>
+          <button id="play">Play</button>
+          <label class="grow">Pulse <input id="pattern" value="x . x [x x] . <x x*2> . x?" spellcheck="false" /></label>
+        </div>
+        <label>Audio input
+          <select id="input">
+            <option value="">none</option>
+            <option value="mic">microphone (asks permission)</option>
+          </select>
+        </label>
+        <div id="params"></div>
+        <div class="forge-row">
+          <button id="ring">Load the example native module (Ring Listener)</button>
+          <button id="send" class="primary">Send to playground</button>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/src/forge/forge.ts"></script>
+  </body>
+</html>

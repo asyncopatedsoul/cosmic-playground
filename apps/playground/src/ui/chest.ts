@@ -26,18 +26,32 @@ export class Chest {
     this.drawer = this.el.querySelector(".chest-drawer")!;
     this.el.querySelector(".chest-handle")!.addEventListener("click", () => this.toggle());
 
+    this.render();
+  }
+
+  /** (Re)build the cards: built-in toys, then a shelf of toys described as data. */
+  render() {
+    this.drawer.replaceChildren();
+    let shelf = false;
     for (const entry of TOYS) {
+      if (entry.config && !shelf) {
+        shelf = true;
+        const divider = document.createElement("span");
+        divider.className = "chest-shelf";
+        divider.title = "Toys made from configs";
+        this.drawer.append(divider);
+      }
       const card = document.createElement("button");
       card.className = "toy-card";
       card.style.setProperty("--toy", entry.color);
       card.title = `${entry.name} · ${entry.family}`;
       card.innerHTML = `${entry.icon}<span>${entry.name.split(" ").pop()}</span>`;
       this.drawer.append(card);
-      this.makeDraggable(card, entry.kind);
+      this.makeDraggable(card, entry.id);
     }
   }
 
-  private makeDraggable(card: HTMLElement, kind: (typeof TOYS)[number]["kind"]) {
+  private makeDraggable(card: HTMLElement, kind: string) {
     let ghost: HTMLElement | null = null;
     let start: { x: number; y: number } | null = null;
     card.addEventListener("pointerdown", (e) => {

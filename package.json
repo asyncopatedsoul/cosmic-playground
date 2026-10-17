@@ -12,6 +12,7 @@
     "test": "PATH=\"$HOME/.cargo/bin:$PATH\" cargo test && npm -w apps/playground run typecheck",
     "tunnel": "node scripts/tunnel.mjs",
     "desktop": "npm -w apps/desktop run dev",
-    "desktop:build": "npm -w apps/desktop run build"
+    "desktop:build": "npm -w apps/desktop run build",
+    "licenses": "node scripts/check-licenses.mjs"
   }
 }

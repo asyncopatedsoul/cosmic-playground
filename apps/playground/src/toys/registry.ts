@@ -1,22 +1,32 @@
 import { Kind, type KindId } from "../audio/protocol";
+import type { ToyConfig } from "../audio/config";
 import type { World } from "../world";
+import { ConfigToy } from "./config-toy";
 import { Kettle } from "./kettle";
 import { Orrery } from "./orrery";
 import { Spire } from "./spire";
 import type { Toy } from "./toy";
+import bottle from "./configs/bottle-organ.json";
+import bowl from "./configs/singing-bowl.json";
+import pendulum from "./configs/pendulum-clock.json";
+import zapbox from "./configs/spark-box.json";
 
 export interface ToyEntry {
+  id: string;
   kind: KindId;
   name: string;
   family: string;
   color: string;
   /** Inline SVG icon for the chest (no text needed to play). */
   icon: string;
+  /** Toys described as data (shown on the chest's "made from configs" shelf). */
+  config?: ToyConfig;
   create(world: World, slot: number): Toy;
 }
 
-export const TOYS: ToyEntry[] = [
+const BUILTIN: ToyEntry[] = [
   {
+    id: "spire",
     kind: Kind.Spire,
     name: "Monochord Spire",
     family: "Vibration",
@@ -25,6 +35,7 @@ export const TOYS: ToyEntry[] = [
     create: (w, s) => new Spire(w, s),
   },
   {
+    id: "orrery",
     kind: Kind.Orrery,
     name: "Kepler Orrery",
     family: "Orbit",
@@ -33,6 +44,7 @@ export const TOYS: ToyEntry[] = [
     create: (w, s) => new Orrery(w, s),
   },
   {
+    id: "kettle",
     kind: Kind.Kettle,
     name: "Reaction Kettle",
     family: "Reaction",
@@ -42,4 +54,31 @@ export const TOYS: ToyEntry[] = [
   },
 ];
 
-export const toyEntry = (kind: KindId) => TOYS.find((t) => t.kind === kind)!;
+const GENERIC_ICON = `<svg viewBox="0 0 48 48"><circle cx="24" cy="12" r="5" fill="currentColor"/><ellipse cx="24" cy="24" rx="12" ry="4" stroke="currentColor" stroke-width="3" fill="none"/><ellipse cx="24" cy="34" rx="15" ry="5" stroke="currentColor" stroke-width="3" fill="none"/></svg>`;
+
+/** A chest entry for a toy described as data. */
+export function configEntry(config: ToyConfig): ToyEntry {
+  return {
+    id: config.id,
+    kind: Kind.Custom,
+    name: config.name,
+    family: config.family,
+    color: config.color,
+    icon: config.icon ?? GENERIC_ICON,
+    config,
+    create: (w, s) => new ConfigToy(w, s, config),
+  };
+}
+
+const CONFIGS = [bowl, bottle, zapbox, pendulum] as unknown as ToyConfig[];
+
+export const TOYS: ToyEntry[] = [...BUILTIN, ...CONFIGS.map(configEntry)];
+
+/** Add (or replace, by id) a toy entry at runtime, e.g. one sent from the Forge. */
+export function registerToy(entry: ToyEntry) {
+  const i = TOYS.findIndex((t) => t.id === entry.id);
+  if (i >= 0) TOYS[i] = entry;
+  else TOYS.push(entry);
+}
+
+export const toyEntry = (id: string) => TOYS.find((t) => t.id === id);

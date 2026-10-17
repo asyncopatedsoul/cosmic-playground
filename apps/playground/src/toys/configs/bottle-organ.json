@@ -1,0 +1,29 @@
+{
+  "id": "bottle-organ",
+  "name": "Bottle Organ",
+  "family": "Resonance",
+  "color": "#9be36b",
+  "icon": "<svg viewBox=\"0 0 48 48\"><path d=\"M20 4h8v10l6 6v22H14V20l6-6z\" stroke=\"currentColor\" stroke-width=\"3\" fill=\"none\" stroke-linejoin=\"round\"/><path d=\"M14 30h20v12H14z\" fill=\"currentColor\" opacity=\".6\"/></svg>",
+  "params": {
+    "fill": { "range": [0, 0.9], "default": 0.3, "gesture": "stretch" },
+    "neck": { "range": [2, 14], "default": 8, "unit": "cm", "gesture": "twist" },
+    "breath": { "range": [0, 1], "default": 0.5 }
+  },
+  "law": { "fn": "helmholtz", "args": { "volume": { "param": "fill", "mul": -0.7, "add": 0.75 }, "area": 3.14, "neck": "neck" } },
+  "voice": {
+    "engine": "patch",
+    "voices": 3,
+    "gate": 0.35,
+    "nodes": {
+      "env": { "op": "adsr", "args": [0.06, 0.1, 0.8, 0.25], "in": { "gate": "$gate" } },
+      "breath": { "op": "pink" },
+      "body": { "op": "band", "in": { "x": "breath", "freq": "$freq", "q": 40 } },
+      "tone": { "op": "sine", "in": { "freq": "$freq" } },
+      "voice": { "op": "mix", "in": { "x": [{ "ref": "body", "mul": 1.6 }, { "ref": "tone", "mul": 0.25 }] } },
+      "out": { "op": "mul", "in": { "a": "voice", "b": "env" } }
+    },
+    "out": "out"
+  },
+  "pulse": { "pattern": "0 . [2 4] . <0 7> . 4 .", "stepsPerBeat": 2 },
+  "form": { "kind": "bottle", "fill": "fill", "size": "neck" }
+}

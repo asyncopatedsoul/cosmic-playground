@@ -85,6 +85,7 @@ svg {
 .hud-group button:hover,
 .hud-scale:hover,
 .hud-wild:hover,
+.hud-tunings:hover,
 .hud-help:hover {
   background: rgba(255, 255, 255, 0.08);
 }
@@ -109,7 +110,8 @@ svg {
   font-size: 17px;
 }
 
-.hud-wild {
+.hud-wild,
+.hud-tunings {
   width: 40px;
   justify-content: center;
   font-size: 18px;
@@ -419,4 +421,105 @@ svg {
   .hud-volume {
     display: none !important;
   }
+}
+
+/* ---- Toys described as data: chest shelf, script, recipes, tunings ------- */
+
+.chest-shelf {
+  flex: none;
+  width: 2px;
+  margin: 8px 2px;
+  border-radius: 2px;
+  background: var(--panel-edge);
+}
+
+.pulse-script {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pulse-script input,
+.recipe-field,
+.tunings input {
+  width: 100%;
+  font: 13px ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--panel-edge);
+  border-radius: 10px;
+  padding: 6px 8px;
+}
+
+.pulse-script input.bad,
+.recipe-field.bad {
+  border-color: var(--accent);
+}
+
+.pulse-script-error {
+  color: var(--accent);
+  min-height: 1em;
+  font-size: 11px;
+}
+
+#pulse.scripted .pulse-ring .step {
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+.pulse-recipes {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+
+.tunings {
+  position: fixed;
+  top: calc(var(--pad) + 52px);
+  right: var(--pad);
+  z-index: 5;
+  width: min(300px, calc(100vw - 32px));
+  max-height: 70vh;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 18px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  backdrop-filter: blur(12px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--ink-dim);
+}
+
+.tunings[hidden] {
+  display: none;
+}
+
+.tunings label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tunings-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tunings-list button {
+  padding: 4px 9px;
+  border-radius: 999px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--panel-edge);
+}
+
+.tunings-msg {
+  color: var(--ink);
 }

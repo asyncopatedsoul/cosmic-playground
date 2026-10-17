@@ -1,0 +1,22 @@
+{
+  "id": "pendulum-clock",
+  "name": "Pendulum Clock",
+  "family": "Oscillator",
+  "color": "#ff8fab",
+  "icon": "<svg viewBox=\"0 0 48 48\"><path d=\"M8 6h32M24 6l8 28\" stroke=\"currentColor\" stroke-width=\"3\" fill=\"none\" stroke-linecap=\"round\"/><circle cx=\"32\" cy=\"36\" r=\"6\" fill=\"currentColor\"/></svg>",
+  "params": {
+    "length": { "range": [0.2, 2], "default": 1, "unit": "m", "gesture": "stretch" },
+    "tick": { "range": [0, 0.9], "default": 0.4, "gesture": "twist" }
+  },
+  "law": { "fn": "pendulum", "args": { "length": "length", "octaves": 9 } },
+  "voice": {
+    "engine": "patch",
+    "nodes": {
+      "string": { "op": "pluck", "in": { "trig": "$trig", "freq": "$freq", "bright": 0.35 } },
+      "room": { "op": "echo", "in": { "x": "string", "time": 0.36, "feedback": "$tick" } }
+    },
+    "out": { "ref": "room", "mul": 0.8 }
+  },
+  "pulse": { "pattern": "x . x . x . [x x?] .", "stepsPerBeat": 2 },
+  "form": { "kind": "pendulum", "size": "length" }
+}

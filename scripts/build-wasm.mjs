@@ -10,13 +10,16 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const pathKey = Object.keys(process.env).find((k) => k.toUpperCase() === "PATH") ?? "PATH";
 const env = { ...process.env, [pathKey]: `${join(homedir(), ".cargo", "bin")}${delimiter}${process.env[pathKey]}` };
 
+// The engine, plus example Voice Modules (docs/VMA.md) the Forge can load.
 execFileSync(
   "cargo",
-  ["build", "--release", "--target", "wasm32-unknown-unknown", "-p", "hypertoy-wasm"],
+  ["build", "--release", "--target", "wasm32-unknown-unknown", "-p", "hypertoy-wasm", "-p", "vma-ring"],
   { cwd: root, stdio: "inherit", env },
 );
 
 const out = join(root, "apps/playground/public");
-mkdirSync(out, { recursive: true });
-copyFileSync(join(root, "target/wasm32-unknown-unknown/release/hypertoy_wasm.wasm"), join(out, "hypertoy.wasm"));
-console.log("wasm → apps/playground/public/hypertoy.wasm");
+const release = join(root, "target/wasm32-unknown-unknown/release");
+mkdirSync(join(out, "modules"), { recursive: true });
+copyFileSync(join(release, "hypertoy_wasm.wasm"), join(out, "hypertoy.wasm"));
+copyFileSync(join(release, "vma_ring.wasm"), join(out, "modules/ring.wasm"));
+console.log("wasm → apps/playground/public/hypertoy.wasm, modules/ring.wasm");

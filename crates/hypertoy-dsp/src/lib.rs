@@ -1,12 +1,21 @@
 //! hypertoy-dsp: allocation-free audio nodes. Every buffer is allocated in
 //! `new`; nothing in a `tick` allocates, so these are safe in the audio callback.
+//!
+//! - The nodes below: our hand-tuned string, bell, bubble, filter, reverb, limiter.
+//! - [`units`]: the same nodes wrapped for fundsp graphs.
+//! - [`patch`]: allow-listed node graphs built into a fundsp `Net` (patch voices).
+//! - [`zap`]: ZzFX-compatible one-shot sound recipes.
+
+pub mod patch;
+pub mod units;
+pub mod zap;
 
 use core::f32::consts::{PI, TAU};
 
 /// Tiny offset that keeps feedback paths out of subnormal range.
 const ANTI_DENORMAL: f32 = 1e-18;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct Noise(u32);
 
 impl Noise {
@@ -30,6 +39,7 @@ pub const PLUCK_MAX: usize = 4096;
 
 /// Karplus-Strong plucked string. Re-plucking adds energy to the ringing
 /// string instead of cutting it, like plucking a real one.
+#[derive(Clone)]
 pub struct Pluck {
     buf: Vec<f32>,
     w: usize,

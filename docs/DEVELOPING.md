@@ -17,13 +17,31 @@
 |---|---|
 | `npm run dev` | Builds the WASM engine, then starts Vite on http://localhost:5173 with hot reload |
 | `npm test` | Rust tests (`cargo test`) and the TypeScript type-check |
+| `npm run licenses` | Checks every dependency of `crates/*` against the allow-list in `deny.toml` (no copyleft in the embeddable crates) |
 | `npm run build` | WASM plus a static production build in `apps/playground/dist` |
 | `npm run tunnel` | Dev server plus a public HTTPS URL through ngrok |
 | `npm run tunnel -- --build` | Same, but serves the production build (`vite preview` on :4173) |
 | `npm run desktop` | The [desktop shell](#desktop-build-tauri): dev server inside a native window, with hot reload |
 | `npm run desktop:build` | Release desktop app and installers in `target/release/bundle/` |
 
-Rust changes need the WASM rebuilt: rerun `npm run build:wasm` (the dev server picks up the new `public/hypertoy.wasm` on reload).
+Rust changes need the WASM rebuilt: rerun `npm run build:wasm` (the dev server picks up the new `public/hypertoy.wasm` on reload). It also builds the example Voice Module (`crates/vma-ring`) to `public/modules/ring.wasm`.
+
+**Windows without Visual Studio Build Tools:** the WASM build only needs `rust-lld`, but native `cargo test` needs a linker. Either install the Build Tools (see [Desktop build](#desktop-build-tauri)) or use the self-contained GNU toolchain:
+
+```bash
+rustup toolchain install stable-x86_64-pc-windows-gnu --profile minimal
+cargo +stable-x86_64-pc-windows-gnu test
+```
+
+## Making toys and sounds
+
+| Where | What |
+|---|---|
+| `apps/playground/src/toys/configs/*.json` | Toys described as data (ToyConfig): a built-in Law, a patch or zap voice, a Pulse pattern, a Form. Add one to `CONFIGS` in `toys/registry.ts`. Format: [AUDIO-GEN.md](AUDIO-GEN.md) §3–§6. |
+| http://localhost:5173/forge.html | The Toy Forge: write a Voice in Faust, hear it, send it to the playground's chest (in another tab). |
+| `crates/vma-ring` | A native Voice Module in Rust; the template for modules in any WASM language ([VMA.md](VMA.md)). |
+| Pulse editor → `</>` | Script any toy's Pulse in mini-notation: `x . [x x] <x x*2>`, `0 2 <4 7>`, `x(3,8)`, `x?`. |
+| HUD → `≋` | Tunings: named scales (Tonal), n-EDO, Scala `.scl` files. |
 
 ## Share over ngrok
 

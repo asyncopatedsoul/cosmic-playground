@@ -16,6 +16,7 @@ export default defineConfig({
       input: {
         app: resolve(import.meta.dirname, "index.html"),
         guide: resolve(import.meta.dirname, "guide.html"),
+        forge: resolve(import.meta.dirname, "forge.html"),
       },
     },
   },

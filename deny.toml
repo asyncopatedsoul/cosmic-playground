@@ -1,0 +1,30 @@
+# cargo-deny (https://github.com/EmbarkStudios/cargo-deny): `cargo deny check licenses`.
+# The crates are MIT OR Apache-2.0 and are linked into every embedder's build,
+# so no copyleft dependency may enter them (docs/AUDIO-GEN.md §1, §12).
+# Copyleft tools (Faust, Cmajor, hvcc, RNBO) only ever appear as separately
+# loaded modules, never as crate dependencies.
+#
+# Without cargo-deny installed, `npm run licenses` (scripts/check-licenses.mjs)
+# enforces the same allow-list using `cargo metadata`.
+
+[graph]
+# The desktop shell is an app (MPL-2.0, like the playground), not an embeddable crate.
+exclude = ["cosmic-playground-desktop"]
+targets = ["wasm32-unknown-unknown", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc", "aarch64-apple-darwin"]
+
+[licenses]
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+]
+confidence-threshold = 0.9
+
+[bans]
+multiple-versions = "allow"

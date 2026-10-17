@@ -1,8 +1,11 @@
 // AudioWorklet: hosts the Rust engine. Every 128-frame quantum it applies
-// queued commands, renders one block in WASM, and every few blocks posts a
-// snapshot of toy state back so the visuals follow the audio clock.
+// queued commands, renders external voice modules (VMA), renders one block in
+// WASM, and every few blocks posts a snapshot of toy state back so the visuals
+// follow the audio clock.
 
-import type { Command, EngineExports, ToWorklet } from "./protocol";
+import { BLOCK, EVENT_STRIDE, MAX_TOYS } from "./abi";
+import type { Command, EngineExports, FromWorklet, ToWorklet } from "./protocol";
+import { VmaHost } from "./vma";
 
 declare const sampleRate: number;
 declare function registerProcessor(name: string, ctor: unknown): void;
@@ -10,8 +13,20 @@ declare class AudioWorkletProcessor {
   readonly port: MessagePort;
 }
 
-const BLOCK = 128;
 const SNAP_EVERY = 3;
+
+/** UTF-8 bytes of `s` (AudioWorkletGlobalScope has no TextEncoder). */
+function utf8(s: string): Uint8Array {
+  const out: number[] = [];
+  for (const ch of s) {
+    const c = ch.codePointAt(0)!;
+    if (c < 0x80) out.push(c);
+    else if (c < 0x800) out.push(0xc0 | (c >> 6), 0x80 | (c & 63));
+    else if (c < 0x10000) out.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+    else out.push(0xf0 | (c >> 18), 0x80 | ((c >> 12) & 63), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+  }
+  return Uint8Array.from(out);
+}
 
 class HypertoyProcessor extends AudioWorkletProcessor {
   private x: EngineExports | null = null;
@@ -20,6 +35,7 @@ class HypertoyProcessor extends AudioWorkletProcessor {
   private snap: Float32Array | null = null;
   private queue: Command[] = [];
   private blocks = 0;
+  private vma = new VmaHost(sampleRate);
 
   constructor() {
     super();
@@ -30,6 +46,10 @@ class HypertoyProcessor extends AudioWorkletProcessor {
     };
   }
 
+  private post(m: FromWorklet, transfer: Transferable[] = []) {
+    this.port.postMessage(m, transfer);
+  }
+
   private async init(bytes: ArrayBuffer) {
     try {
       const { instance } = await WebAssembly.instantiate(bytes, {});
@@ -37,9 +57,9 @@ class HypertoyProcessor extends AudioWorkletProcessor {
       this.e = x.engine_new(sampleRate);
       this.x = x;
       this.views();
-      this.port.postMessage({ t: "ready" });
+      this.post({ t: "ready" });
     } catch (err) {
-      this.port.postMessage({ t: "error", message: String(err) });
+      this.post({ t: "error", message: String(err) });
     }
   }
 
@@ -51,29 +71,103 @@ class HypertoyProcessor extends AudioWorkletProcessor {
     this.snap = new Float32Array(buf, x.engine_snap_ptr(this.e), x.engine_snap_len());
   }
 
+  private f32(ptr: number, len: number) {
+    return new Float32Array(this.x!.memory.buffer, ptr, len);
+  }
+
+  /** Copy numbers into the engine's scratch buffer; returns the word count. */
+  private words(w: ArrayLike<number>): number {
+    const x = this.x!;
+    const n = Math.min(w.length, x.engine_scratch_len());
+    this.f32(x.engine_scratch_ptr(this.e), n).set(Array.from(w).slice(0, n));
+    return w.length > n ? n + 1 : n; // one past the end makes the engine report "too long"
+  }
+
+  /** Copy UTF-8 text into scratch; returns the byte count. */
+  private text(s: string): number {
+    const x = this.x!;
+    const bytes = utf8(s);
+    const cap = x.engine_scratch_len() * 4;
+    new Uint8Array(x.memory.buffer, x.engine_scratch_ptr(this.e), Math.min(bytes.length, cap)).set(bytes.subarray(0, cap));
+    return bytes.length;
+  }
+
+  private check(slot: number, what: string, code: number, detail?: string) {
+    if (code !== 0) this.post({ t: "loadError", slot, what, code, detail });
+  }
+
   private apply(c: Command) {
     const x = this.x!;
     const e = this.e;
     switch (c.t) {
       case "tempo": return x.engine_set_tempo(e, c.bpm);
       case "tuning": return x.engine_set_tuning(e, c.root, c.scale, c.wild ? 1 : 0);
+      case "tuningTable": return this.check(-1, "tuning", x.engine_set_tuning_table(e, this.words([c.period, ...c.cents])));
+      case "scl": return this.check(-1, "scl", x.engine_set_tuning_scl(e, this.text(c.text)));
       case "master": return x.engine_set_master(e, c.gain);
-      case "add": return x.toy_add(e, c.slot, c.kind);
-      case "remove": return x.toy_remove(e, c.slot);
+      case "add":
+        this.vma.remove(c.slot);
+        return x.toy_add(e, c.slot, c.kind);
+      case "remove":
+        this.vma.remove(c.slot);
+        return x.toy_remove(e, c.slot);
       case "param": return x.toy_set_param(e, c.slot, c.p, c.v);
       case "step": return x.toy_set_step(e, c.slot, c.step, c.prob);
       case "poke": return x.toy_poke(e, c.slot, c.strength, c.aux);
+      case "pattern": return this.check(c.slot, "pattern", x.toy_set_pattern(e, c.slot, this.text(c.text)), c.text);
+      case "law":
+        this.words(c.args);
+        return this.check(c.slot, "law", x.toy_set_law(e, c.slot, c.law, c.wild ? 1 : 0));
+      case "patch":
+        return this.check(c.slot, "patch", x.toy_load_patch(e, c.slot, this.words(c.words), c.voices, c.gate));
+      case "zap": return this.check(c.slot, "zap", x.toy_load_zap(e, c.slot, this.words(c.words)));
+      case "external":
+        try {
+          this.vma.load(c.slot, c.module);
+          this.check(c.slot, "external", x.toy_load_external(e, c.slot));
+        } catch (err) {
+          this.post({ t: "loadError", slot: c.slot, what: "external", code: -5, detail: String(err) });
+        }
+        return;
     }
   }
 
-  process(_inputs: Float32Array[][], outputs: Float32Array[][]): boolean {
+  process(inputs: Float32Array[][], outputs: Float32Array[][]): boolean {
+    try {
+      return this.render(inputs, outputs);
+    } catch (err) {
+      // Report once, then go quiet rather than die silently.
+      this.post({ t: "error", message: `process: ${err instanceof Error ? err.stack ?? err.message : String(err)}` });
+      this.x = null;
+      return true;
+    }
+  }
+
+  private render(inputs: Float32Array[][], outputs: Float32Array[][]): boolean {
     const x = this.x;
     if (!x) return true;
     for (const c of this.queue) this.apply(c);
     this.queue.length = 0;
 
+    if (this.vma.size) {
+      const ext = this.f32(x.engine_ext_ptr(this.e), MAX_TOYS * BLOCK * 2);
+      const bus = this.f32(x.engine_bus_ptr(this.e), MAX_TOYS * BLOCK);
+      this.vma.render(
+        ext,
+        (slot) => bus.subarray(slot * BLOCK, (slot + 1) * BLOCK),
+        inputs[0]?.length ? inputs[0] : null,
+        (slot, err) => this.post({ t: "loadError", slot, what: "external", code: -6, detail: String(err) }),
+      );
+    }
+
     x.engine_process(this.e, BLOCK);
     if (this.out!.buffer !== x.memory.buffer) this.views();
+
+    const n = x.engine_events_len(this.e);
+    if (n) {
+      if (this.vma.size) this.vma.takeEvents(this.f32(x.engine_events_ptr(this.e), n * EVENT_STRIDE), n);
+      x.engine_events_clear(this.e);
+    }
 
     const [l, r] = outputs[0];
     l.set(this.out!.subarray(0, BLOCK));
@@ -81,7 +175,7 @@ class HypertoyProcessor extends AudioWorkletProcessor {
 
     if (++this.blocks % SNAP_EVERY === 0) {
       const data = this.snap!.slice();
-      this.port.postMessage({ t: "snap", data }, [data.buffer]);
+      this.post({ t: "snap", data }, [data.buffer]);
     }
     return true;
   }

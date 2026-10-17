@@ -1,9 +1,10 @@
 import * as THREE from "three";
 import { Fields } from "./audio/fields";
 import { AudioHost } from "./audio/host";
-import { Kind } from "./audio/protocol";
 import { Input } from "./input";
+import type { ToyConfig } from "./audio/config";
 import { Stage } from "./render/stage";
+import { configEntry, registerToy } from "./toys/registry";
 import { Chest } from "./ui/chest";
 import { Hud } from "./ui/hud";
 import { PulseEditor } from "./ui/pulse-editor";
@@ -22,9 +23,17 @@ new Input(stage, world, editor, chest, audio);
 // Start with a string to pluck and an orrery already turning, so the first
 // touch makes sound and the world is playing on its own right away.
 const portrait = innerHeight > innerWidth;
-world.add(Kind.Spire, portrait ? new THREE.Vector3(-0.4, 0, 2.2) : new THREE.Vector3(-2.4, 0, 0.8));
-world.add(Kind.Orrery, portrait ? new THREE.Vector3(0.2, 0, -1.6) : new THREE.Vector3(2.3, 0, -0.6));
+world.add("spire", portrait ? new THREE.Vector3(-0.4, 0, 2.2) : new THREE.Vector3(-2.4, 0, 0.8));
+world.add("orrery", portrait ? new THREE.Vector3(0.2, 0, -1.6) : new THREE.Vector3(2.3, 0, -0.6));
 chest.toggle(true);
+
+// Toys sent from the Toy Forge (forge.html, same origin) join the chest and the world.
+new BroadcastChannel("hypertoys-forge").onmessage = (ev: MessageEvent<{ t: "toy"; config: ToyConfig }>) => {
+  if (ev.data?.t !== "toy") return;
+  registerToy(configEntry(ev.data.config));
+  chest.render();
+  world.add(ev.data.config.id);
+};
 
 const wake = document.getElementById("wake")!;
 audio.onReady = () => wake.classList.add("gone");

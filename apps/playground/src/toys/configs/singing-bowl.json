@@ -1,0 +1,28 @@
+{
+  "id": "singing-bowl",
+  "name": "Singing Bowl",
+  "family": "Plate",
+  "color": "#7fd4ff",
+  "icon": "<svg viewBox=\"0 0 48 48\"><path d=\"M6 20h36c0 12-8 20-18 20S6 32 6 20z\" stroke=\"currentColor\" stroke-width=\"3\" fill=\"none\"/><path d=\"M14 12c3-3 7-3 10 0s7 3 10 0\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"none\"/></svg>",
+  "params": {
+    "rim": { "range": [0.06, 0.25], "default": 0.12, "unit": "m", "gesture": "stretch" },
+    "glaze": { "range": [0.4, 2.5], "default": 1, "gesture": "twist" }
+  },
+  "law": { "fn": "plate", "args": { "radius": "rim", "thickness": 0.002, "stiffness": "glaze" } },
+  "voice": {
+    "engine": "patch",
+    "voices": 3,
+    "gate": 0.05,
+    "nodes": {
+      "strike": { "op": "bell", "in": { "trig": "$trig", "freq": "$freq", "decay": 4 } },
+      "env": { "op": "adsr", "args": [0.004, 1.2, 0, 1.5], "in": { "gate": "$gate" } },
+      "air": { "op": "noise" },
+      "ring": { "op": "resonator", "in": { "x": { "ref": "air", "mul": 0.6 }, "freq": { "ref": "$freq", "mul": 2.76 }, "bw": 6 } },
+      "shimmer": { "op": "mul", "in": { "a": "ring", "b": "env" } },
+      "mix": { "op": "mix", "in": { "x": ["strike", { "ref": "shimmer", "mul": 0.5 }] } }
+    },
+    "out": "mix"
+  },
+  "pulse": { "pattern": "x . . . x . <. x?> .", "stepsPerBeat": 2 },
+  "form": { "kind": "bowl", "size": "rim", "twist": "glaze" }
+}

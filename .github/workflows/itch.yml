@@ -1,0 +1,104 @@
+# Build the web and Windows channels from one commit and push them to itch.io
+# with one --userversion (docs/PLAYTESTS.md R4, docs/PUBLISHING-ITCH.md §6.2).
+#
+# Repository secret:    BUTLER_API_KEY  (itch.io → Settings → API keys)
+# Repository variables: ITCH_TARGET (user/game), VITE_RELAY_URL, VITE_SHARE_URL
+#
+# Run it from Actions → itch → Run workflow. Don't run it during a playtest:
+# a new build id splits the room (PLAYTESTS.md §4).
+name: itch
+
+on:
+  workflow_dispatch:
+    inputs:
+      push:
+        description: Push to itch (off = build and stage only)
+        type: boolean
+        default: true
+
+concurrency:
+  group: itch
+  cancel-in-progress: false
+
+env:
+  VITE_RELAY_URL: ${{ vars.VITE_RELAY_URL }}
+  VITE_SHARE_URL: ${{ vars.VITE_SHARE_URL }}
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    outputs:
+      build_id: ${{ steps.stage.outputs.build_id }}
+      version: ${{ steps.stage.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - run: npm ci
+      # Builds the engine, computes the build id, builds dist/ and stages build/itch/html5.
+      - id: stage
+        run: node scripts/itch.mjs --web --dry-run
+      - uses: actions/upload-artifact@v4
+        with:
+          name: html5
+          path: build/itch/html5
+          if-no-files-found: error
+
+  windows:
+    needs: web
+    runs-on: windows-latest
+    env:
+      # The same id as the web job, so both channels pass the room's build lock.
+      BUILD_ID: ${{ needs.web.outputs.build_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - run: npm ci
+      # tauri build --no-bundle, then Cosmic Playground.exe + .itch.toml in build/itch/windows.
+      - run: node scripts/itch.mjs --windows --dry-run
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: build/itch/windows
+          include-hidden-files: true # .itch.toml
+          if-no-files-found: error
+
+  push:
+    needs: [web, windows]
+    if: ${{ inputs.push }}
+    runs-on: ubuntu-latest
+    env:
+      BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+      ITCH_TARGET: ${{ vars.ITCH_TARGET }}
+      VERSION: ${{ needs.web.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: itch
+      - name: Install butler
+        run: |
+          curl -sSfL -o butler.zip https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default
+          unzip -q butler.zip -d butler
+          chmod +x butler/butler
+          echo "$PWD/butler" >> "$GITHUB_PATH"
+      - name: Push html5 and windows
+        run: |
+          test -n "$BUTLER_API_KEY" || { echo "::error::BUTLER_API_KEY secret is not set"; exit 1; }
+          test -n "$ITCH_TARGET" || { echo "::error::ITCH_TARGET variable is not set"; exit 1; }
+          butler --version
+          butler push itch/html5 "$ITCH_TARGET:html5" --userversion "$VERSION"
+          butler push itch/windows "$ITCH_TARGET:windows" --userversion "$VERSION"
+          echo "Pushed $VERSION to $ITCH_TARGET" >> "$GITHUB_STEP_SUMMARY"

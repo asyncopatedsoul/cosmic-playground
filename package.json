@@ -11,6 +11,7 @@
     "build": "npm run build:wasm && npm -w apps/playground run build",
     "test": "PATH=\"$HOME/.cargo/bin:$PATH\" cargo test && npm -w apps/playground run typecheck && npm -w apps/relay test",
     "tunnel": "node scripts/tunnel.mjs",
+    "itch": "node scripts/itch.mjs",
     "desktop": "npm -w apps/desktop run dev",
     "desktop:build": "npm -w apps/desktop run build",
     "licenses": "node scripts/check-licenses.mjs"

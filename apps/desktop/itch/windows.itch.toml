@@ -1,0 +1,5 @@
+# Copied to the root of the itch `windows` channel as .itch.toml by
+# scripts/itch.mjs and .github/workflows/itch.yml: tells the itch app what to launch.
+[[actions]]
+name = "play"
+path = "Cosmic Playground.exe"

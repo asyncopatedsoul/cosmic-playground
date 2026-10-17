@@ -880,6 +880,37 @@ body.avatar-mode #wake {
   padding: 2px 8px !important;
 }
 
+.room-invite {
+  margin: 0;
+  font-size: 13px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.room-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--ink-dim);
+}
+
+#room .room-foot button {
+  font-size: 11px;
+  padding: 2px 8px;
+}
+
+.room-details {
+  margin: 0;
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  font: 11px/1.4 ui-monospace, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .room-note,
 .room-lock {
   margin: 0;

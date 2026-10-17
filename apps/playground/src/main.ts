@@ -55,6 +55,7 @@ const padSource: GamepadSource = fakePads ? new MergedSource([new NavigatorGamep
 const picker = new PlacePicker(world);
 const cursors = new SeatCursors(stage, seats);
 const gamepads = new Gamepads({ stage, world, editor, aim, audio, seats, picker, cursors }, padSource);
+room.pads = () => gamepads.connected;
 
 // Start with a string to pluck and an orrery already turning, so the first
 // touch makes sound and the world is playing on its own right away.

@@ -45,6 +45,15 @@
         "--strictPort"
       ],
       "port": 4173
+    },
+    {
+      "name": "relay",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "apps/relay/server.mjs",
+        "--dev"
+      ],
+      "port": 8787
     }
   ]
 }

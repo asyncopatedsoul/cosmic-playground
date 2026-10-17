@@ -6,12 +6,14 @@ An all-ages, multiplayer playground for sound and geometry. You play with **hype
 - 🛠 **Developing:** [docs/DEVELOPING.md](docs/DEVELOPING.md) covers setup, scripts, and sharing over ngrok for phones and Quest 3.
 - 🧭 **Help system plan:** [docs/HELP-SYSTEM.md](docs/HELP-SYSTEM.md) covers the cross-platform tutorial and anchored hints.
 - 🚀 **Publishing:** [docs/PUBLISHING.md](docs/PUBLISHING.md) covers CI, web and desktop releases, domains and the site/CMS.
+- 🎮 **itch.io test builds:** [docs/PUBLISHING-ITCH.md](docs/PUBLISHING-ITCH.md) covers pushing web and desktop builds to a restricted itch.io page with a hosted relay, for remote multiplayer testing.
 - 🗺 **Feature plans, in priority order** ([PLAN.md §8.1](docs/PLAN.md#81-feature-plans-in-priority-order)):
   1. [docs/MULTIPLAYER.md](docs/MULTIPLAYER.md): browser and desktop jams over ngrok (next up)
   2. [docs/SAVE-LOAD.md](docs/SAVE-LOAD.md): Constellation save/load, toy variants in the chest
   3. [docs/AUDIO-MIX.md](docs/AUDIO-MIX.md): global mute, toy mute/solo/focus, toy volume
   4. [docs/TOY-BOOK.md](docs/TOY-BOOK.md): fullscreen gallery and details for every toy, playable and planned
   5. [docs/AVATAR.md](docs/AVATAR.md): Minecraft-creative avatar, gravity bodies, crosshair aiming and ray preview
+  - [docs/LOCAL-MULTIPLAYER.md](docs/LOCAL-MULTIPLAYER.md): one screen with mouse, gamepads and phone controllers; or a table of phones with one phone hosting
   - [docs/REVISIONS.md](docs/REVISIONS.md): code changes for the Oct 2026 decisions in the Toy Book, Modes, Save/Load and Dev Mode plans
 
 Status: **Phase 0 toy prototype** (single player, desktop and touch).

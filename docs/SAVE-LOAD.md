@@ -4,7 +4,7 @@
 > in the desktop app, or into a multiplayer room. Save any single toy, exactly as you've tuned it,
 > as a **variant** that lives under its toy type in the chest.
 
-Status: plan · Oct 2026 · step S1 is a prerequisite of [MULTIPLAYER.md](MULTIPLAYER.md) step M1 · builds on [PLAN.md](PLAN.md) §1.1 (Constellations), §5.1 (Tier 0 remix) and [AUDIO-GEN.md](AUDIO-GEN.md) §3 (toys as data)
+Status: S1–S4 built for the browser (Oct 2026; see §9.1), S5 to do · step S1 is a prerequisite of [MULTIPLAYER.md](MULTIPLAYER.md) step M1 · builds on [PLAN.md](PLAN.md) §1.1 (Constellations), §5.1 (Tier 0 remix) and [AUDIO-GEN.md](AUDIO-GEN.md) §3 (toys as data)
 
 ---
 
@@ -209,6 +209,14 @@ IndexedDB store `templates/<id>`. Worlds embed the templates they use, so deleti
 | **S3. Files and links** | Export/import, drag-and-drop, URL hash links, Tauri dialogs | A world made on a phone opens in the desktop app from a file and from a link |
 | **S4. Variants** | `ToyTemplate`, "Keep this one", chest fan, export/import, clipboard copy/paste | A 7-year-old saves a variant and finds it again in the chest without help |
 | **S5. Rooms** | WorldDoc ⇄ Y.Doc, relay snapshots, Load into room | A saved world loaded into a room appears identically for every player |
+
+### 9.1 What's built
+
+- **S1:** `src/persist/doc.ts` (`toDoc`, `parseDoc` with clamps and unknown-key keeping, `migrate` scaffold, `loadDoc` applying state before the first Pulse via `Toy.init(pos, state)`), `World.customTuning`, `ParamDef.derived` (Kettle). Exit check: `cosmic.test.roundTrip()` in dev builds (all 7 toys, a Scala tuning, an unknown key and an unknown toy kind; byte-identical).
+- **S2:** `src/persist/store.ts` (`WorldStore`, IndexedDB adapter), `ui/constellations.ts` (sheet, recent list with WebP thumbnails, Ctrl+S / Ctrl+Shift+S / Ctrl+O / Ctrl+E, dirty dot, autosave every 30 s and on hide, Continue chip, saved-view eye chip with `Stage.flyTo`). Continue is offered whenever an autosave with toys exists; the autosave is only written after a real change, so first runs never see it. Puzzles aren't autosaved.
+- **S3 (browser):** `persist/file.ts` (export, import, drop anywhere), `persist/link.ts` (`#w=` links up to 6 KB). Not yet: Tauri native dialogs.
+- **S4:** `persist/template.ts` (`ToyTemplate`, `parseTemplate` keeping unknown keys, the R3.3 `form` lock, auto-naming from the biggest change, tints near the base colour, number badges), `persist/library.ts` (IndexedDB `templates/<id>`, read once into memory), `ui/variants.ts` (keep, place, rename, remove, export `.cosmic-toy.json`, import by picker or drop anywhere, Ctrl+C / Ctrl+V through the clipboard events, Ctrl+Shift+K, the "Add the N variants in this world?" offer), the star in the Pulse editor, the chest's stack edge and fan (right-click, long-press or hover; right-click a variant to rename, export or remove it), `Toy.template` and a `tint` in `ToyState` applied before the toy is built. Worlds keep every embedded template they came with and add the ones their toys use. Known gaps: a toy you keep stays its base colour until the world is reopened; variants aren't shared in rooms yet (the room snapshot has no `template`); no Toy Book view (TOY-BOOK.md) and no duplicate.
+- **Not yet:** the grey sealed-box placeholder (unknown toys are kept as data and saved back, with a toast), the generated JSON Schema and fixture tests, S5 rooms (loading as a room admin already flows through the room binding).
 
 S1 is on the multiplayer critical path ([MULTIPLAYER.md](MULTIPLAYER.md) M1). S2–S4 can run in parallel with multiplayer M2–M3.
 

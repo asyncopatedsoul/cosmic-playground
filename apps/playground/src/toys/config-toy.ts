@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { compileVoice, compileZap, paramIndex, ZZFX_DEFAULTS, type ToyConfig } from "../audio/config";
 import { Kind, Param, Snap } from "../audio/protocol";
 import type { World } from "../world";
-import { Toy, glow, invisible, type DragHandler, type ParamDef, type PointerInfo, type SnapView } from "./toy";
+import { Toy, glow, invisible, type DragHandler, type ParamDef, type PointerInfo, type SnapView, type ToyState } from "./toy";
 
 /**
  * A toy described as data (ToyConfig). Its Law and Voice load into the
@@ -51,6 +51,17 @@ export class ConfigToy extends Toy {
   /** Right after `add`: the Law and Voice, before params and Pulse arrive. */
   protected afterAdd() {
     for (const c of compileVoice(this.config, this.slot)) this.world.audio.send(c);
+  }
+
+  protected loadState(s: ToyState) {
+    super.loadState(s);
+    const v = this.config.voice;
+    if (v.engine === "zap" && Array.isArray(s.recipe)) this.config = { ...this.config, voice: { ...v, recipe: s.recipe } };
+  }
+
+  state(): ToyState {
+    const v = this.config.voice;
+    return { ...super.state(), recipe: v.engine === "zap" ? this.recipe() : null };
   }
 
   /** The current ZzFX recipe (zap voices), with defaults filled in. */

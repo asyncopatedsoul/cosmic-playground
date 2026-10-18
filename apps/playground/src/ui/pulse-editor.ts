@@ -29,6 +29,8 @@ const SPEEDS = [
  */
 export class PulseEditor {
   toy: Toy | null = null;
+  /** "Keep this one": save the toy as a variant (set by main.ts; SAVE-LOAD.md §6.2). */
+  onKeep: ((toy: Toy) => void) | null = null;
   private el: HTMLElement;
   private svg: SVGSVGElement;
   private dots: SVGCircleElement[] = [];
@@ -42,6 +44,7 @@ export class PulseEditor {
     this.el = document.getElementById("pulse")!;
     this.el.innerHTML = `
       <button class="pulse-close" aria-label="Close">×</button>
+      <button class="pulse-keep" aria-label="Keep this one" title="Keep this one: save it as a variant in the chest (Ctrl+Shift+K)">${starIcon()}</button>
       <svg class="pulse-ring" viewBox="-120 -120 240 240" aria-label="Pulse pattern"></svg>
       <div class="pulse-row pulse-rates"></div>
       <div class="pulse-row pulse-shape">
@@ -71,6 +74,14 @@ export class PulseEditor {
     this.script.addEventListener("keydown", (e) => e.stopPropagation());
     this.recipes = new RecipeBox(this.el.querySelector(".pulse-recipes")!);
     this.el.querySelector(".pulse-close")!.addEventListener("click", () => this.close());
+    const keep = this.el.querySelector<HTMLElement>(".pulse-keep")!;
+    keep.addEventListener("click", () => {
+      if (!this.toy) return;
+      this.onKeep?.(this.toy);
+      keep.classList.remove("kept");
+      void keep.offsetWidth;
+      keep.classList.add("kept");
+    });
     this.el.querySelector(".pulse-shape")!.addEventListener("click", (e) => {
       const act = (e.target as HTMLElement).closest("button")?.dataset.act;
       if (act === "script") {
@@ -228,6 +239,10 @@ export class PulseEditor {
     this.dots[step]?.classList.add("now");
     this.lastStep = step;
   }
+}
+
+function starIcon() {
+  return `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.8l2.7 5.9 6.4.7-4.8 4.3 1.4 6.3L12 16.8 6.3 20l1.4-6.3-4.8-4.3 6.4-.7z"/></svg>`;
 }
 
 function dotsIcon(n: number) {

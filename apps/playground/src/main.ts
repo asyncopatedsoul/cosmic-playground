@@ -15,6 +15,9 @@ import { Stage } from "./render/stage";
 import { Seats } from "./seats/seats";
 import { configEntry, registerToy } from "./toys/registry";
 import { Chest } from "./ui/chest";
+import { Constellations } from "./ui/constellations";
+import { library } from "./persist/library";
+import { Variants } from "./ui/variants";
 import { Hotbar } from "./ui/hotbar";
 import { Hud } from "./ui/hud";
 import { ListenSheet } from "./ui/listen";
@@ -49,8 +52,9 @@ const room = new RoomSheet(document.getElementById("hud")!, world, stage, avatar
 const seats = new Seats();
 const input = new Input({ stage, world, editor, chest, audio, aim, preview, avatar, hotbar, ghost, modes, listen, badge, seats });
 
-// Gamepad seats (docs/PLAYTESTS.md §3). In dev, scripted pads join the real ones (`cosmic.pads`).
 const params = new URLSearchParams(location.search);
+
+// Gamepad seats (docs/PLAYTESTS.md §3). In dev, scripted pads join the real ones (`cosmic.pads`).
 const fakePads = import.meta.env.DEV || params.has("dev") || params.has("test") ? new FakeGamepadSource() : null;
 const padSource: GamepadSource = fakePads ? new MergedSource([new NavigatorGamepads(), fakePads]) : new NavigatorGamepads();
 const picker = new PlacePicker(world);
@@ -73,6 +77,39 @@ puzzles.onChange = (mode) => {
   if (mode) chest.toggle(false);
 };
 if (params.get("puzzle")) puzzles.open(params.get("puzzle")!);
+
+// Save and open worlds (docs/SAVE-LOAD.md): autosave, named saves, files and links.
+const constellations = new Constellations(document.getElementById("hud")!, {
+  world,
+  audio,
+  avatarActive: () => avatar.active,
+  room: () => ({ inRoom: !!room.session, admin: !!room.session?.isAdmin }),
+  beforeLoad: () => {
+    if (puzzles.mode) puzzles.leave();
+  },
+  afterLoad: (doc) => {
+    chest.render();
+    if (doc) variants.offer(doc.templates);
+  },
+  importToy: (text) => variants.importText(text),
+  saving: () => !puzzles.mode,
+});
+
+// Toy variants (docs/SAVE-LOAD.md §6): "Keep this one", the chest fan, toy files and copy/paste.
+const variants = new Variants({
+  world,
+  target: () => editor.toy ?? input.targetToy(),
+  aimPoint: () => {
+    const h = aim.current;
+    return h.kind !== "none" && h.point && h.point.length() < 12 ? h.point.clone().setY(0) : null;
+  },
+});
+chest.variants = variants;
+editor.onKeep = (toy) => void variants.keep(toy);
+// Keeping a variant links the toy to it, which changes what a save holds.
+library.listeners.push(() => constellations.markChanged());
+// The library loads before the autosave is offered, so a continued world finds its variants.
+void library.load().then(() => constellations.start());
 
 // Toys sent from the Toy Forge (forge.html, same origin) join the chest and the world.
 new BroadcastChannel("hypertoys-forge").onmessage = (ev: MessageEvent<{ t: "toy"; config: ToyConfig }>) => {
@@ -97,7 +134,7 @@ stage.renderer.setAnimationLoop(() => {
 });
 
 if (fakePads) {
-  const cosmic = { world, audio, puzzles, stage, fields, aim, avatar, hotbar, room, seats, gamepads, pads: fakePads, test: {} as Record<string, unknown> };
+  const cosmic = { world, audio, puzzles, constellations, stage, fields, aim, avatar, hotbar, room, seats, gamepads, pads: fakePads, test: {} as Record<string, unknown> };
   Object.assign(window, { cosmic });
   // The L1 exit check (docs/PLAYTESTS.md): `cosmic.test.seats()`, or open with ?scenario=seats.
   const seatsScenario = () => import("./dev/seats-scenario").then((m) => m.runSeatsScenario({ aim, world, stage, seats, gamepads, pads: fakePads, input }));
@@ -105,4 +142,6 @@ if (fakePads) {
   if (params.get("scenario") === "seats") seatsScenario();
   // `cosmic.test.solve()` applies the open puzzle's first listed solution (docs/MODES.md §10).
   cosmic.test.solve = (which = 0) => puzzles.mode?.solve(which);
+  // The S1 exit check (docs/SAVE-LOAD.md §9): save → load → save gives the same JSON.
+  cosmic.test.roundTrip = () => import("./dev/save-roundtrip").then((m) => m.roundTrip(world));
 }

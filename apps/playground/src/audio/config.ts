@@ -80,6 +80,8 @@ export interface ToyConfig {
   voice: ConfigVoice;
   pulse?: { pattern?: string; enabled?: boolean; stepsPerBeat?: number; steps?: number };
   form: { kind: FormKind; size?: string; fill?: string; twist?: string };
+  /** A variant's edited config (SAVE-LOAD.md §6.1): the root toy it is a variant of. */
+  extends?: string;
 }
 
 // ---- laws -----------------------------------------------------------------

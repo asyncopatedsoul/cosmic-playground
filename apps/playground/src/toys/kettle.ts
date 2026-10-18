@@ -45,8 +45,8 @@ export class Kettle extends Toy {
   readonly kind = Kind.Kettle;
   readonly color = 0x3fe0c5;
   readonly defs: Record<string, ParamDef> = {
-    coverage: { id: Param.A, range: [0, 1], default: 0 },
-    activity: { id: Param.B, range: [0, 1], default: 0 },
+    coverage: { id: Param.A, range: [0, 1], default: 0, derived: true },
+    activity: { id: Param.B, range: [0, 1], default: 0, derived: true },
     reagent: { id: Param.C, range: [0, 1], default: 0, gesture: "twist" },
   };
   pulse: PulseState = { enabled: false, steps: 16, prob: euclid(5, 16), stepsPerBeat: 4, speed: 1 };

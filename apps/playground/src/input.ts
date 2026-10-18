@@ -292,6 +292,12 @@ export class Input {
     this.d.stage.canvas.style.cursor = this.d.avatar.active ? "crosshair" : !part ? "grab" : part === "base" ? "move" : "pointer";
   }
 
+  /** The toy that shortcuts outside Input act on (variants: Ctrl+Shift+K, Ctrl+C). */
+  targetToy(): Toy | null {
+    const t = this.target();
+    return t && this.d.world.toys.includes(t) ? t : null;
+  }
+
   /** The toy that keys like Q/E and [ ] act on: the aimed one, else the last touched. */
   private target(): Toy | null {
     const h = this.d.aim.current;

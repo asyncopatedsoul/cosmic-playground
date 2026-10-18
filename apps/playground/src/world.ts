@@ -6,7 +6,7 @@ import { describeLoadError, MAX_TOYS, SCALE_CUSTOM } from "./audio/protocol";
 import type { Stage } from "./render/stage";
 import { planeBody, type GravityBody } from "./avatar/gravity";
 import { toyEntry } from "./toys/registry";
-import { SnapView, type PulseState, type Toy } from "./toys/toy";
+import { SnapView, type PulseState, type Toy, type ToyState } from "./toys/toy";
 import { sandbox, type Mode } from "./modes/mode";
 
 /** What changed on a toy, for the multiplayer binding. */
@@ -24,6 +24,9 @@ export interface ToySnapshot {
   volume?: number;
   /** Per-toy wild (MODES.md §7.1); omitted when false. */
   wild?: boolean;
+  /** The variant it came from and its colour (SAVE-LOAD.md §6); local undo only, not shared yet. */
+  template?: string;
+  tint?: string;
 }
 
 export interface WorldTuning {
@@ -35,13 +38,27 @@ export interface WorldTuning {
   custom?: string;
 }
 
+/** The data behind a custom Tuning, kept so the world can be saved (SAVE-LOAD.md §3). */
+export type CustomTuning = { name: string; cents: number[]; period: number } | { name: string; scl: string };
+
 /** All toys in play plus the world's shared Tuning and tempo. */
 export class World {
   readonly toys: (Toy | null)[] = new Array(MAX_TOYS).fill(null);
   tuning: WorldTuning = { root: 60, scale: 0, wild: false };
+  /** The custom table or Scala text behind `tuning.custom`; null for presets. */
+  customTuning: CustomTuning | null = null;
   bpm = 96;
   /** What this player hears: master, mute, solo, focus (local, never shared). */
   readonly mix: MixState;
+  /** Toys picked for focus view (FOCUS-VIEW.md §3.1): local, never saved or shared. */
+  readonly selection = new Set<string>();
+  /** Called when the selection changes. */
+  readonly selectionListeners: (() => void)[] = [];
+  /**
+   * Saved data this build can't use, written back unchanged on the next save
+   * (SAVE-LOAD.md §3.1): toys of unknown kinds, and unknown keys of the world and its toys.
+   */
+  readonly kept = { toys: [] as Record<string, unknown>[], keys: {} as Record<string, unknown>, toyKeys: new Map<string, Record<string, unknown>>() };
   /** Gravity bodies (docs/AVATAR.md §4); V1 has only the ground. */
   readonly bodies: GravityBody[] = [planeBody()];
   /** Called after every tempo or Tuning change, local, remote or scripted (the HUD redraws). */
@@ -87,7 +104,7 @@ export class World {
   onLoadError: ((slot: number, what: string, message: string) => void) | null = null;
 
   /** Place a toy from the registry by id (see toys/registry.ts). */
-  add(id: string, position?: THREE.Vector3, toyId?: string): Toy | null {
+  add(id: string, position?: THREE.Vector3, toyId?: string, state?: ToyState): Toy | null {
     if (!this.applying && (!this.canEdit() || !this.mode.allowAdd(id))) return null;
     const slot = this.toys.indexOf(null);
     const entry = toyEntry(id);
@@ -95,7 +112,7 @@ export class World {
     const toy = entry.create(this, slot);
     toy.entryId = id;
     if (toyId) toy.id = toyId;
-    toy.init(position ?? this.freeSpot());
+    toy.init(position ?? this.freeSpot(), state);
     this.stage.scene.add(toy.group);
     this.toys[slot] = toy;
     this.mix.apply();
@@ -110,6 +127,7 @@ export class World {
     toy.dispose();
     this.toys[toy.slot] = null;
     this.mix.forget(toy);
+    if (this.selection.delete(toy.id)) this.selectionChanged();
     this.onChange?.();
     if (!this.applying) for (const l of this.listeners) l.remove?.(toy);
   }
@@ -126,12 +144,30 @@ export class World {
     for (const l of this.listeners) l.poke?.(toy, strength);
   }
 
+  /** Add or remove a toy from the selection (`on` forces it). */
+  select(toy: Toy, on = !this.selection.has(toy.id)) {
+    if (on === this.selection.has(toy.id)) return;
+    if (on) this.selection.add(toy.id);
+    else this.selection.delete(toy.id);
+    this.selectionChanged();
+  }
+
+  clearSelection() {
+    if (!this.selection.size) return;
+    this.selection.clear();
+    this.selectionChanged();
+  }
+
+  selectionChanged() {
+    for (const l of this.selectionListeners) l();
+  }
+
   byId(id: string): Toy | null {
     return this.toys.find((t) => t?.id === id) ?? null;
   }
 
   snapshot(toy: Toy): ToySnapshot {
-    const p = toy.group.position;
+    const p = toy.worldPos;
     return {
       id: toy.id,
       entry: toy.entryId,
@@ -141,14 +177,14 @@ export class World {
       pattern: toy.pattern,
       volume: toy.volume,
       ...(toy.wild ? { wild: true } : {}),
+      ...(toy.template ? { template: toy.template, tint: toy.css } : {}),
     };
   }
 
   /** Make a toy from a snapshot (undo a put-away, or a toy that arrived from the room). */
   restore(s: ToySnapshot): Toy | null {
-    const toy = this.add(s.entry, new THREE.Vector3(...s.pos), s.id);
-    if (!toy) return null;
-    this.applyState(toy, s);
+    const toy = this.add(s.entry, new THREE.Vector3(...s.pos), s.id, s);
+    if (toy && s.template) toy.template = s.template;
     return toy;
   }
 
@@ -168,7 +204,7 @@ export class World {
 
   /** The free spot nearest the middle of the view. */
   freeSpot(): THREE.Vector3 {
-    const taken = this.toys.filter((t): t is Toy => !!t).map((t) => t.group.position);
+    const taken = this.toys.filter((t): t is Toy => !!t).map((t) => t.worldPos);
     const spots: THREE.Vector3[] = [];
     for (let x = -6; x <= 6; x += 1.5) for (let z = -7; z <= 5; z += 1.5) spots.push(new THREE.Vector3(x, 0, z));
     // On narrow (portrait) screens, sideways space is scarce; prefer the centre column.
@@ -207,7 +243,10 @@ export class World {
   setTuning(t: Partial<WorldTuning>) {
     if (!this.applying && (!this.canEdit() || !this.mode.allowWorld("tuning"))) return;
     Object.assign(this.tuning, t);
-    if (this.tuning.scale !== SCALE_CUSTOM) this.tuning.custom = undefined;
+    if (this.tuning.scale !== SCALE_CUSTOM) {
+      this.tuning.custom = undefined;
+      this.customTuning = null;
+    }
     const { root, scale, wild } = this.tuning;
     this.audio.send({ t: "tuning", root, scale, wild });
     if (!this.applying) for (const l of this.listeners) l.world?.("tuning");
@@ -216,13 +255,17 @@ export class World {
 
   /** Any tuning as cents within a period (n-EDO, a Tonal scale, ...). */
   setTuningTable(name: string, cents: number[], period = 1200) {
+    if (!this.applying && (!this.canEdit() || !this.mode.allowWorld("tuning"))) return;
     this.audio.send({ t: "tuningTable", period, cents });
+    this.customTuning = { name, cents: [...cents], period };
     this.setTuning({ scale: SCALE_CUSTOM, custom: name });
   }
 
   /** A Scala .scl file. */
   setTuningScala(name: string, text: string) {
+    if (!this.applying && (!this.canEdit() || !this.mode.allowWorld("tuning"))) return;
     this.audio.send({ t: "scl", text });
+    this.customTuning = { name, scl: text };
     this.setTuning({ scale: SCALE_CUSTOM, custom: name });
   }
 

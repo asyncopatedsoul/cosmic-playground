@@ -4,6 +4,13 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 
+export interface OrbitState {
+  target: THREE.Vector3;
+  azimuth: number;
+  elevation: number;
+  distance: number;
+}
+
 /**
  * The three.js scene, camera rigs and picking helpers. The orbit rig lives
  * here; in avatar mode (`rig = "avatar"`) the avatar drives the camera.
@@ -123,6 +130,45 @@ export class Stage {
     this.target.copy(target);
     this.azimuth = azimuth;
     this.placeCamera();
+  }
+
+  /** The whole orbit rig, to save and restore it (focus view, FOCUS-VIEW.md §3.2). */
+  getOrbit(): OrbitState {
+    return { target: this.target.clone(), azimuth: this.azimuth, elevation: this.elevation, distance: this.distance };
+  }
+
+  /** Set the orbit rig directly; distance isn't clamped, so a wide ring can be framed. */
+  setOrbitState(o: OrbitState) {
+    this.target.copy(o.target);
+    this.azimuth = o.azimuth;
+    this.elevation = o.elevation;
+    this.distance = o.distance;
+    this.placeCamera();
+  }
+
+  private flight = 0;
+
+  /** Ease the orbit rig to `o` over `ms` (instant under reduced motion); the saved-view chip uses it. */
+  flyTo(o: OrbitState, ms = 600) {
+    cancelAnimationFrame(this.flight);
+    const from = this.getOrbit();
+    // Turn the short way round.
+    const tau = Math.PI * 2;
+    const dAz = ((((o.azimuth - from.azimuth) % tau) + tau * 1.5) % tau) - Math.PI;
+    if (this.reducedMotion || ms <= 0) return this.setOrbitState({ ...o, azimuth: from.azimuth + dAz });
+    const start = performance.now();
+    const step = (now: number) => {
+      const k = Math.min(1, (now - start) / ms);
+      const e = k * k * (3 - 2 * k);
+      this.setOrbitState({
+        target: from.target.clone().lerp(o.target, e),
+        azimuth: from.azimuth + dAz * e,
+        elevation: from.elevation + (o.elevation - from.elevation) * e,
+        distance: from.distance + (o.distance - from.distance) * e,
+      });
+      if (k < 1) this.flight = requestAnimationFrame(step);
+    };
+    this.flight = requestAnimationFrame(step);
   }
 
   /** Where the orbit rig would put the camera, without moving it. */

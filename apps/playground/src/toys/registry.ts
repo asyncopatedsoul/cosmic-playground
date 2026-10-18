@@ -74,6 +74,11 @@ const CONFIGS = [bowl, bottle, zapbox, pendulum] as unknown as ToyConfig[];
 
 export const TOYS: ToyEntry[] = [...BUILTIN, ...CONFIGS.map(configEntry)];
 
+const SHIPPED = new Set(TOYS.map((t) => t.id));
+
+/** True for toys that ship with every build; saved worlds embed the configs of all others. */
+export const isShipped = (id: string) => SHIPPED.has(id);
+
 /** Add (or replace, by id) a toy entry at runtime, e.g. one sent from the Forge. */
 export function registerToy(entry: ToyEntry) {
   const i = TOYS.findIndex((t) => t.id === entry.id);

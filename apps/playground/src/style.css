@@ -1485,3 +1485,431 @@ body.world-locked .hud-room::after {
 .puzzle-shelf button[data-leave] {
   color: var(--ink-dim);
 }
+
+/* ---- Constellations: save and open worlds (SAVE-LOAD.md §7) -------------- */
+
+.hud-constellations {
+  position: relative;
+  color: var(--ink-dim);
+}
+
+.hud-constellations svg {
+  width: 18px;
+  height: 18px;
+}
+
+.hud-constellations:hover {
+  color: var(--ink);
+}
+
+.cst-dot {
+  position: absolute;
+  top: 7px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: none;
+}
+
+.hud-constellations.dirty .cst-dot {
+  display: block;
+}
+
+.cst {
+  position: fixed;
+  top: calc(max(10px, env(safe-area-inset-top)) + 56px);
+  right: var(--pad);
+  width: min(380px, calc(100vw - 2 * var(--pad)));
+  max-height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 18px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  backdrop-filter: blur(10px);
+  z-index: 20;
+}
+
+.cst[hidden] {
+  display: none;
+}
+
+.cst-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ffd9a0;
+}
+
+.cst-head svg {
+  width: 22px;
+  height: 22px;
+  flex: none;
+}
+
+.cst-name {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 17px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 6px 10px;
+  user-select: text;
+}
+
+.cst-name:focus {
+  outline: none;
+  border-color: var(--panel-edge);
+}
+
+.cst-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 6px;
+}
+
+.cst-actions button {
+  min-height: 40px;
+  padding: 6px 8px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.cst-actions button:hover,
+.cst-list button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.cst-actions button[data-act="save"] {
+  background: rgba(255, 92, 138, 0.22);
+}
+
+.cst-msg {
+  margin: 0;
+  min-height: 1.4em;
+  font-size: 13px;
+  color: var(--ink-dim);
+}
+
+.cst-msg.bad {
+  color: #ffb0b0;
+}
+
+.cst-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  display: grid;
+  gap: 6px;
+}
+
+.cst-list li {
+  display: flex;
+  gap: 4px;
+}
+
+.cst-list li.current > button:first-child {
+  outline: 2px solid #ffd9a0;
+}
+
+.cst-list button[data-act="open"] {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 77px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  align-items: center;
+  text-align: left;
+  padding: 6px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.cst-list img,
+.cst-thumb {
+  grid-row: span 2;
+  width: 77px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #080a1a;
+}
+
+.cst-thumb {
+  display: grid;
+  place-items: center;
+  color: var(--ink-dim);
+}
+
+.cst-thumb svg {
+  width: 24px;
+  height: 24px;
+}
+
+.cst-row-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cst-list small {
+  color: var(--ink-dim);
+  font-size: 12px;
+}
+
+.cst-del {
+  width: 36px;
+  border-radius: 12px;
+  color: var(--ink-dim);
+  font-size: 18px;
+}
+
+.cst-empty {
+  color: var(--ink-dim);
+  font-size: 13px;
+  padding: 6px 2px;
+}
+
+.cst-chip {
+  position: fixed;
+  top: calc(22% + 48px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 15;
+}
+
+.cst-chip[hidden] {
+  display: none;
+}
+
+.cst-chip button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 22px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  backdrop-filter: blur(10px);
+}
+
+.cst-chip button svg {
+  width: 20px;
+  height: 20px;
+  color: #ffd9a0;
+}
+
+.cst-chip b {
+  font-weight: 600;
+}
+
+.cst-chip .cst-fresh {
+  border: 0;
+  background: none;
+  backdrop-filter: none;
+  color: var(--ink-dim);
+  font-size: 13px;
+  text-decoration: underline;
+  padding: 0 8px;
+}
+
+.cst-eye {
+  top: auto;
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 120px);
+}
+
+.cst-ask {
+  position: fixed;
+  top: 30%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(360px, calc(100vw - 2 * var(--pad)));
+  padding: 16px;
+  border-radius: 18px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  backdrop-filter: blur(10px);
+  z-index: 30;
+}
+
+.cst-ask p {
+  margin: 0 0 12px;
+}
+
+.cst-ask div {
+  display: flex;
+  gap: 8px;
+}
+
+.cst-ask button {
+  flex: 1;
+  min-height: 44px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.cst-ask button[data-yes] {
+  background: rgba(255, 92, 138, 0.3);
+}
+
+/* ---- Toy variants (docs/SAVE-LOAD.md §6) ------------------------------- */
+
+.pulse-keep {
+  position: absolute;
+  z-index: 2;
+  top: 6px;
+  left: 8px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-dim);
+}
+
+.pulse-keep svg {
+  width: 20px;
+  height: 20px;
+}
+
+.pulse-keep:hover {
+  color: #ffd36e;
+}
+
+.pulse-keep.kept {
+  animation: keep-pop 0.6s ease-out;
+  color: #ffd36e;
+}
+
+@keyframes keep-pop {
+  40% {
+    transform: scale(1.4) rotate(-12deg);
+  }
+}
+
+/* A stack edge: one sliver per variant (up to three) behind the card. */
+.toy-card.has-variants {
+  position: relative;
+  box-shadow:
+    3px -3px 0 -1px color-mix(in srgb, var(--toy) 35%, #0d0f22),
+    calc(3px * min(2, var(--stack, 1))) calc(-3px * min(2, var(--stack, 1))) 0 -1px color-mix(in srgb, var(--toy) 22%, #0d0f22);
+}
+
+.toy-card.fanned {
+  border-color: var(--toy);
+}
+
+.chest-fan {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 20px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  backdrop-filter: blur(12px);
+  max-width: calc(100vw - 16px);
+  overflow-x: auto;
+  animation: fan-out 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+.chest-fan[hidden] {
+  display: none;
+}
+
+@keyframes fan-out {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.92);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chest-fan,
+  .pulse-keep.kept {
+    animation: none;
+  }
+}
+
+.toy-card.variant {
+  position: relative;
+}
+
+.toy-card.variant span {
+  max-width: 70px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+}
+
+.toy-badge {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  font: 700 11px/18px system-ui, sans-serif;
+  color: #0d0f22;
+  background: var(--toy);
+}
+
+.toy-card.variant-import {
+  --toy: var(--ink-dim);
+  border-style: dashed;
+}
+
+.chest-menu {
+  position: fixed;
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 210px;
+  padding: 8px;
+  border-radius: 14px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  backdrop-filter: blur(12px);
+}
+
+.chest-menu[hidden] {
+  display: none;
+}
+
+.chest-menu input {
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid var(--panel-edge);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ink);
+  font: inherit;
+}
+
+.chest-menu button {
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: 10px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.chest-menu button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}

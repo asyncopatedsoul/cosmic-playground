@@ -12,6 +12,21 @@ export interface ParamDef {
   default: number;
   step?: number;
   gesture?: Gesture;
+  /** Computed by the toy itself (Kettle coverage); never saved (SAVE-LOAD.md §3). */
+  derived?: boolean;
+}
+
+/** Everything a saved toy carries besides where it stands (SAVE-LOAD.md §3). */
+export interface ToyState {
+  params?: Record<string, number>;
+  pulse?: PulseState;
+  pattern?: string;
+  /** A zap voice's ZzFX recipe (config toys). */
+  recipe?: number[] | null;
+  volume?: number;
+  wild?: boolean;
+  /** A variant's colour (SAVE-LOAD.md §6.1), "#rrggbb"; applied once, before the toy is built. */
+  tint?: string | null;
 }
 
 export interface PulseState {
@@ -78,6 +93,12 @@ export abstract class Toy {
   /** Set when the engine rejects the pattern: where and why. */
   patternError: string | null = null;
   selected = false;
+  /**
+   * The toy's real position while focus view shows it somewhere else (a display
+   * pose, FOCUS-VIEW.md §4.2); null otherwise. `group.position` is then only
+   * where it's drawn; saves, the room and `moveTo` use this.
+   */
+  home: THREE.Vector3 | null = null;
   /** Stable id shared across a room (docs/MULTIPLAYER.md §4.2); engine slots stay local. */
   id = randomId();
   /** The registry entry this toy was made from (toys/registry.ts). */
@@ -86,6 +107,8 @@ export abstract class Toy {
   volume = DEFAULT_VOLUME;
   /** This toy alone doesn't snap to the Tuning (MODES.md §7.1). Shared and saved; no UI yet. */
   wild = false;
+  /** The variant this toy was placed from or kept as (SAVE-LOAD.md §6.2); saved, so worlds embed it. */
+  template: string | null = null;
 
   protected baseRadius = 0.6;
   protected flash = 0;
@@ -101,9 +124,16 @@ export abstract class Toy {
     readonly slot: number,
   ) {}
 
-  /** Called once after construction, when subclass fields exist. */
-  init(position: THREE.Vector3) {
+  /**
+   * Called once after construction, when subclass fields exist. A saved
+   * `state` is applied before anything reaches the engine, so a loaded toy
+   * never plays a note with default params.
+   */
+  init(position: THREE.Vector3, state?: ToyState) {
     for (const [name, d] of Object.entries(this.defs)) this.params[name] = d.default;
+    if (state) this.loadState(state);
+    // A variant looks like its base, recoloured (SAVE-LOAD.md §6.1): before anything uses the colour.
+    if (state?.tint) (this as { color: number }).color = new THREE.Color(state.tint).getHex();
     this.buildBase();
     this.build();
     this.group.position.copy(position);
@@ -115,6 +145,28 @@ export abstract class Toy {
     this.sendPulse();
     if (this.pattern) this.setPattern(this.pattern);
     this.sendPan();
+  }
+
+  /** Take a saved state before `init` builds and sends anything; params are clamped to their ranges. */
+  protected loadState(s: ToyState) {
+    for (const [name, v] of Object.entries(s.params ?? {})) {
+      const d = this.defs[name];
+      if (!d || d.derived || !Number.isFinite(v)) continue;
+      let x = THREE.MathUtils.clamp(v, d.range[0], d.range[1]);
+      if (d.step) x = Math.round(x / d.step) * d.step;
+      this.params[name] = x;
+    }
+    if (s.pulse) this.pulse = { ...s.pulse, prob: [...s.pulse.prob] };
+    if (typeof s.pattern === "string") this.pattern = s.pattern.trim();
+    if (typeof s.volume === "number" && Number.isFinite(s.volume)) this.volume = THREE.MathUtils.clamp(s.volume, 0, 1);
+    if (typeof s.wild === "boolean") this.wild = s.wild;
+  }
+
+  /** The toy's saved state (derived params left out). */
+  state(): ToyState {
+    const params: Record<string, number> = {};
+    for (const [name, d] of Object.entries(this.defs)) if (!d.derived) params[name] = this.params[name];
+    return { params, pulse: { ...this.pulse, prob: [...this.pulse.prob] }, pattern: this.pattern, recipe: null, volume: this.volume, wild: this.wild };
   }
 
   /** Hook for toys that load more into their slot (Law, Voice) before params. */
@@ -298,11 +350,19 @@ export abstract class Toy {
     p.prob.forEach((prob, step) => audio.send({ t: "step", slot, step, prob }));
   }
 
+  /** Where the toy really is (its home while focus view shows it on the ring). */
+  get worldPos(): THREE.Vector3 {
+    return this.home ?? this.group.position;
+  }
+
   moveTo(pos: THREE.Vector3) {
     if (!this.editable) return;
     if (!this.world.applying && !this.world.mode.allowMove(this)) return this.refuse();
-    this.group.position.copy(pos);
-    this.sendPan();
+    if (this.home) this.home.copy(pos);
+    else {
+      this.group.position.copy(pos);
+      this.sendPan();
+    }
     this.world.edited(this, "pos");
   }
 

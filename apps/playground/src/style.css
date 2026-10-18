@@ -2211,3 +2211,485 @@ body.world-locked .hud-room::after {
 .chest-menu button:hover {
   background: rgba(255, 255, 255, 0.12);
 }
+
+/* ---- main menu (docs/MAIN-MENU.md) ------------------------------------------ */
+
+.hud-home {
+  width: 40px;
+  justify-content: center;
+  color: var(--ink-dim);
+}
+
+.hud-home svg {
+  width: 18px;
+  height: 18px;
+}
+
+.hud-home:hover {
+  color: var(--ink);
+}
+
+body.in-menu #hud,
+body.in-menu #chest,
+body.in-menu #hotbar,
+body.in-menu #pulse,
+body.in-menu #help,
+body.in-menu #wake,
+body.in-menu #room,
+body.in-menu .cst,
+body.in-menu .cst-chip,
+body.in-menu .puzzle-shelf,
+body.in-menu .focus-bar {
+  visibility: hidden;
+}
+
+#menu {
+  position: fixed;
+  inset: 0;
+  z-index: 19;
+  overflow-y: auto;
+  padding: max(20px, env(safe-area-inset-top)) var(--pad) max(24px, env(safe-area-inset-bottom));
+  background: radial-gradient(ellipse at 50% 30%, rgba(4, 5, 13, 0.15), rgba(4, 5, 13, 0.75));
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  align-items: center;
+}
+
+#menu[hidden] {
+  display: none;
+}
+
+#menu > * {
+  width: min(880px, 100%);
+}
+
+#menu button {
+  border-radius: 18px;
+}
+
+#menu button:focus-visible,
+#menu a:focus-visible {
+  outline: 2px solid #ffd9a0;
+  outline-offset: 2px;
+}
+
+.menu-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.menu-top h1 {
+  flex: 1;
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ink-dim);
+}
+
+.menu-help,
+.menu-back {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 22px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 20px;
+}
+
+.menu-main {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 14px;
+}
+
+#menu.first .menu-main {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  gap: 28px;
+  margin-top: 14vh;
+}
+
+.menu-continue {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.menu-card,
+.menu-play,
+.menu-actions button,
+.menu-tile,
+.menu-puzzles button {
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  backdrop-filter: blur(10px);
+}
+
+.menu-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  overflow: hidden;
+  padding: 0;
+  text-align: left;
+  flex: 1;
+}
+
+.menu-card:hover,
+.menu-actions button:hover,
+.menu-tile:hover,
+.menu-puzzles button:not([disabled]):hover {
+  border-color: rgba(255, 217, 160, 0.55);
+}
+
+.menu-card .menu-thumb {
+  width: 100%;
+  aspect-ratio: 192 / 100;
+  object-fit: cover;
+  display: grid;
+  place-items: center;
+  color: #ffd9a0;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.menu-card span.menu-thumb svg {
+  width: 26%;
+  height: auto;
+}
+
+.menu-card-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 16px 14px;
+}
+
+.menu-card-text b {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 22px;
+  color: #ffd9a0;
+}
+
+.menu-card-text b svg {
+  width: 18px;
+  height: 18px;
+}
+
+.menu-card-text span {
+  font-size: 17px;
+}
+
+.menu-card-text small,
+.menu-tile small,
+.menu-puzzles small {
+  color: var(--ink-dim);
+}
+
+.menu-keep {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  color: #ffd9a0;
+}
+
+.menu-keep svg {
+  width: 22px;
+  height: 22px;
+}
+
+.menu-also {
+  align-self: flex-start;
+  padding: 8px 14px;
+  color: var(--ink-dim);
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+}
+
+.menu-also b {
+  color: var(--ink);
+}
+
+.menu-play {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 22px 52px;
+  font-size: 28px;
+  color: #ffd9a0;
+  animation: breathe 3s ease-in-out infinite;
+}
+
+.menu-play svg {
+  width: 30px;
+  height: 30px;
+}
+
+.menu-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#menu.first .menu-actions {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.menu-actions button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 0 18px;
+  font-size: 17px;
+  text-align: left;
+}
+
+.menu-actions svg {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  color: #ffd9a0;
+}
+
+.menu-worlds h2 {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-dim);
+}
+
+.menu-empty {
+  margin: 0;
+  color: var(--ink-dim);
+}
+
+.menu-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.menu-tile {
+  position: relative;
+  border-radius: 16px;
+}
+
+.menu-tile > button[data-act="open"] {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border-radius: 16px 16px 0 0;
+  overflow: hidden;
+}
+
+.menu-tile img,
+.menu-tile-thumb {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 192 / 120;
+  object-fit: cover;
+  color: #ffd9a0;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.menu-tile-thumb svg {
+  width: 36px;
+  height: 36px;
+}
+
+.menu-dot {
+  display: none;
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--bg);
+}
+
+.menu-tile.unsaved .menu-dot {
+  display: block;
+}
+
+.menu-tile-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 40px 10px 12px;
+  min-width: 0;
+}
+
+.menu-tile-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-rename {
+  font: inherit;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--panel-edge);
+  border-radius: 8px;
+  padding: 2px 6px;
+  min-width: 0;
+  user-select: text;
+}
+
+.menu-more {
+  position: absolute;
+  right: 4px;
+  bottom: 6px;
+  width: 36px;
+  height: 36px;
+  font-size: 20px;
+  color: var(--ink-dim);
+}
+
+.menu-more:hover {
+  color: var(--ink);
+}
+
+.menu-tile-menu {
+  position: absolute;
+  right: 4px;
+  bottom: 44px;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 140px;
+  padding: 6px;
+  border-radius: 14px;
+  background: rgba(16, 18, 40, 0.97);
+  border: 1px solid var(--panel-edge);
+}
+
+.menu-tile-menu[hidden] {
+  display: none;
+}
+
+#menu .menu-tile-menu button {
+  padding: 10px 12px;
+  text-align: left;
+  border-radius: 10px;
+}
+
+.menu-tile-menu button:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.menu-tile-menu .bad {
+  color: #ff8fa8;
+}
+
+.menu-puzzles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.menu-puzzles button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 72px;
+  padding: 10px 16px;
+  font-size: 17px;
+  text-align: left;
+}
+
+.menu-puzzles .menu-thumb {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  color: #ffd9a0;
+}
+
+.menu-puzzles .menu-thumb svg {
+  width: 100%;
+  height: 100%;
+}
+
+.menu-puzzles b {
+  margin-left: auto;
+  color: #9fe6b0;
+}
+
+.menu-puzzles small {
+  margin-left: auto;
+}
+
+.menu-puzzles button[disabled] {
+  opacity: 0.45;
+  cursor: default;
+}
+
+#menu > .menu-undo {
+  position: fixed;
+  left: 50%;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 8px 8px 18px;
+  border-radius: 24px;
+  background: rgba(16, 18, 40, 0.97);
+  border: 1px solid var(--panel-edge);
+}
+
+#menu > .menu-undo[hidden] {
+  display: none;
+}
+
+.menu-undo button {
+  padding: 8px 16px;
+  color: #ffd9a0;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+@media (max-width: 640px) {
+  .menu-main {
+    grid-template-columns: 1fr;
+  }
+
+  .menu-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-play {
+    animation: none;
+  }
+}

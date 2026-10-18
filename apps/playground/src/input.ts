@@ -93,6 +93,8 @@ export class Input {
   private carry: Toy | null = null;
   /** When H went down on a toy that wasn't focused, for hold-to-focus. */
   private focusHeld: { toy: Toy; at: number } | null = null;
+  /** Off on the main menu (MAIN-MENU.md §3): keys do nothing. */
+  enabled = true;
 
   constructor(private d: InputDeps) {
     const c = d.stage.canvas;
@@ -399,6 +401,16 @@ export class Input {
     this.d.aim.ignore = null;
   }
 
+  /** Leaving a world (MAIN-MENU.md §5): back to orbit, nothing held, nothing to undo. */
+  reset() {
+    this.drop();
+    this.d.avatar.exit();
+    this.d.ghost.hide();
+    this.lastToy = null;
+    this.focusHeld = null;
+    for (const s of this.d.seats.list) s.putAway.length = 0;
+  }
+
   private toggleAvatar() {
     const { avatar } = this.d;
     if (avatar.active) {
@@ -409,6 +421,7 @@ export class Input {
   }
 
   private key(e: KeyboardEvent) {
+    if (!this.enabled) return;
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
     const { avatar, chest, editor, hotbar, preview, world } = this.d;
     if (avatar.active && !e.ctrlKey && !e.metaKey && avatar.keyDown(e)) {

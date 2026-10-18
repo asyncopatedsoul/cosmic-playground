@@ -8,6 +8,7 @@ import { AUTOSAVE, IdbStore, persistStorage, type WorldMeta, type WorldStore } f
 import { load as loadPref, save as savePref } from "../prefs";
 import type { World } from "../world";
 import { toast } from "./announce";
+import { ask } from "./ask";
 
 const GLYPH = `<svg viewBox="0 0 20 20"><path d="M3.5 13.5 8 6.5l5 4 3.5-6" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".6"/><circle cx="3.5" cy="13.5" r="1.7" fill="currentColor"/><circle cx="8" cy="6.5" r="1.7" fill="currentColor"/><circle cx="13" cy="10.5" r="1.7" fill="currentColor"/><circle cx="16.5" cy="4.5" r="1.7" fill="currentColor"/><circle cx="12" cy="16.5" r="1" fill="currentColor" opacity=".6"/></svg>`;
 const EYE = `<svg viewBox="0 0 20 20"><path d="M1.5 10S5 4 10 4s8.5 6 8.5 6-3.5 6-8.5 6-8.5-6-8.5-6z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="10" r="2.6" fill="currentColor"/></svg>`;
@@ -33,12 +34,22 @@ export interface ConstellationDeps {
   importToy?: (text: string) => Promise<boolean>;
   /** False while a puzzle is open: puzzles aren't autosaved as sandbox worlds. */
   saving: () => boolean;
+  /** False on the main menu (MAIN-MENU.md §3): no shortcuts, and nothing to autosave. */
+  inWorld: () => boolean;
+}
+
+/** The autosave and the named save it belongs to: the menu's Continue card (MAIN-MENU.md §4.3). */
+export interface LastWorld {
+  doc: WorldDoc;
+  /** The named save it continues, or null for a world that was never named. */
+  of: string | null;
 }
 
 /**
  * The Constellation sheet (docs/SAVE-LOAD.md §5, §7): New, Save, Save as,
- * Open (recent list), Import, Export, Share link; plus the autosave, the
- * Continue chip on start and the saved-view chip after an open.
+ * Open (recent list), Import, Export, Share link; plus the autosave and the
+ * saved-view chip after an open. The main menu (ui/menu.ts) reads and opens
+ * saves through the methods here.
  */
 export class Constellations {
   private store: WorldStore = new IdbStore();
@@ -136,24 +147,17 @@ export class Constellations {
     });
   }
 
-  /** On start: open a world from the link, or offer to continue the autosave. */
-  async start() {
+  /** On start: open a world from a `#w=` link. True if the page came with one (opened or not). */
+  async start(): Promise<boolean> {
     this.nameField.value = this.meta.name;
     await this.fingerprint();
     this.namedPrint = this.autoPrint = this.print;
     const link = await readLink();
-    if (link) {
-      history.replaceState(null, "", location.pathname + location.search);
-      if (!link.ok) return this.say(link.error, true);
-      await this.apply(link, null, { allowModules: false });
-      return;
-    }
-    try {
-      const auto = await this.store.get(AUTOSAVE);
-      if (auto && auto.toys.length) this.offerContinue(auto);
-    } catch {
-      /* no storage (private window): nothing to continue */
-    }
+    if (!link) return false;
+    history.replaceState(null, "", location.pathname + location.search);
+    if (!link.ok) this.say(link.error, true);
+    else await this.apply(link, null, { allowModules: false });
+    return true;
   }
 
   toggle(open = this.sheet.hidden) {
@@ -197,10 +201,117 @@ export class Constellations {
 
   private viewBookmark: ViewDoc | null = null;
 
-  async openSaved(id: string) {
+  async openSaved(id: string): Promise<boolean> {
     const doc = await this.store.get(id).catch(() => null);
-    if (!doc) return this.say("That world is gone.", true);
-    await this.apply(parseDoc(doc), id);
+    if (!doc) {
+      this.say("That world is gone.", true);
+      return false;
+    }
+    // Its autosave is newer (left without saving): open it where it was left (MAIN-MENU.md §4.3).
+    const last = await this.lastWorld();
+    if (last?.of === id && last.doc.modified > doc.modified) return this.continueLast();
+    return this.apply(parseDoc(doc), id);
+  }
+
+  // ---- for the main menu (MAIN-MENU.md §4) -----------------------------------
+
+  /** Named saves, newest first; null when storage is off in this window. */
+  async listSaved(): Promise<WorldMeta[] | null> {
+    try {
+      return await this.store.list();
+    } catch {
+      return null;
+    }
+  }
+
+  /** The autosave, if it has toys. */
+  async lastWorld(): Promise<LastWorld | null> {
+    const doc = await this.store.get(AUTOSAVE).catch(() => null);
+    if (!doc?.toys.length) return null;
+    return { doc, of: loadPref<string | null>(AUTOSAVE_OF, null) };
+  }
+
+  /** Open the autosave, as the named save it belongs to. */
+  async continueLast(): Promise<boolean> {
+    const last = await this.lastWorld();
+    if (!last) {
+      this.say("Nothing to continue.", true);
+      return false;
+    }
+    const ok = await this.apply(parseDoc(last.doc), last.of);
+    // It is the autosave already: nothing new to write until something changes.
+    if (ok) this.autoPrint = this.print;
+    return ok;
+  }
+
+  /** A fresh world filled by `populate` (the starter toys); the autosave stays until something changes. */
+  async startFresh(populate: () => void) {
+    this.d.beforeLoad();
+    clearWorld(this.d.world);
+    populate();
+    this.d.afterLoad();
+    this.id = null;
+    this.meta = freshMeta();
+    this.viewBookmark = null;
+    this.nameField.value = this.meta.name;
+    await this.fingerprint();
+    this.namedPrint = this.autoPrint = this.print;
+    this.render();
+  }
+
+  /** Name the unnamed autosave without opening it (the ☆ on the Continue card). */
+  async keepLast(): Promise<string | null> {
+    const last = await this.lastWorld();
+    if (!last || last.of) return last?.of ?? null;
+    const id = newId("w_");
+    try {
+      await this.store.put(id, last.doc);
+      savePref(AUTOSAVE_OF, id);
+      persistStorage();
+    } catch {
+      this.say("Couldn't save here (storage is off in this window).", true);
+      return null;
+    }
+    toast(`Kept “${last.doc.name}”`);
+    return id;
+  }
+
+  async renameSaved(id: string, name: string) {
+    const doc = await this.store.get(id).catch(() => null);
+    if (!doc) return;
+    name = name.trim().slice(0, 60) || doc.name;
+    await this.store.put(id, { ...doc, name }).catch(() => {});
+    // The autosave of this save carries the name too, so Continue shows it.
+    const last = await this.lastWorld();
+    if (last?.of === id) await this.store.put(AUTOSAVE, { ...last.doc, name }).catch(() => {});
+    if (id === this.id) {
+      this.meta.name = name;
+      this.nameField.value = name;
+    }
+  }
+
+  async exportSaved(id: string) {
+    const doc = await this.store.get(id).catch(() => null);
+    if (doc) exportFile(doc);
+  }
+
+  /** Delete a named save; returns what Undo needs to put it back. */
+  async removeSaved(id: string): Promise<(() => Promise<void>) | null> {
+    const doc = await this.store.get(id).catch(() => null);
+    if (!doc) return null;
+    const wasOf = loadPref<string | null>(AUTOSAVE_OF, null) === id;
+    await this.remove(id);
+    if (wasOf) savePref(AUTOSAVE_OF, null);
+    return async () => {
+      await this.store.put(id, doc).catch(() => {});
+      if (wasOf) savePref(AUTOSAVE_OF, id);
+    };
+  }
+
+  /** Pick a world (or toy) file and open it. True if a world opened. */
+  async pickAndImport(): Promise<boolean> {
+    const f = await pickFile();
+    return f ? this.importFrom(f) : false;
   }
 
   newWorld() {
@@ -225,18 +336,21 @@ export class Constellations {
     this.say("Downloaded");
   }
 
-  private async importFrom(file: File) {
+  private async importFrom(file: File): Promise<boolean> {
     // A toy file (a variant) goes to the chest, not into the world.
     if (this.d.importToy && file.size < 2 * 1024 * 1024) {
       const text = await file.text();
       if (isToyFile(text)) {
         await this.d.importToy(text);
-        return;
+        return false;
       }
     }
     const r = await importFile(file);
-    if (!r.ok) return this.say(r.error, true);
-    await this.apply(r, null);
+    if (!r.ok) {
+      this.say(r.error, true);
+      return false;
+    }
+    return this.apply(r, null);
   }
 
   private async shareLink() {
@@ -272,12 +386,15 @@ export class Constellations {
   }
 
   /** Replace the world with a parsed doc; `id` is its named save, if it has one. */
-  private async apply(r: ParseResult, id: string | null, opts?: { allowModules: boolean }) {
-    if (!r.ok) return this.say(r.error, true);
-    if (!this.mayLoad()) return;
+  private async apply(r: ParseResult, id: string | null, opts?: { allowModules: boolean }): Promise<boolean> {
+    if (!r.ok) {
+      this.say(r.error, true);
+      return false;
+    }
+    if (!this.mayLoad()) return false;
     const doc = r.doc;
     const n = moduleCount(doc);
-    const allowModules = opts?.allowModules ?? (n === 0 || (await this.ask(`This world has ${n === 1 ? "1 custom sound" : `${n} custom sounds`} made in the Forge. Play ${n === 1 ? "it" : "them"}?`)));
+    const allowModules = opts?.allowModules ?? (n === 0 || (await ask(`This world has ${n === 1 ? "1 custom sound" : `${n} custom sounds`} made in the Forge. Play ${n === 1 ? "it" : "them"}?`, "Play them", "Leave them out")));
     this.d.beforeLoad();
     const before = this.d.world.stage.getOrbit();
     const result = loadDoc(this.d.world, doc, { allowModules });
@@ -295,6 +412,7 @@ export class Constellations {
     for (const note of [...r.warnings, ...result.notes]) toast(note);
     this.say(inRoom ? `Loaded “${doc.name}” into the room` : `Opened “${doc.name}”`);
     if (result.view && !inRoom && !this.d.avatarActive() && viewDiffers(before, result.view)) this.offerView(result.view);
+    return true;
   }
 
   // ---- autosave and fingerprints -------------------------------------------
@@ -315,8 +433,6 @@ export class Constellations {
       try {
         await this.fingerprint();
         this.render();
-        // Playing on instead of continuing: the Continue chip goes away.
-        if (this.print !== this.autoPrint && this.chip.classList.contains("cst-continue")) this.hideChip();
       } finally {
         this.checking = false;
         if (this.recheck) {
@@ -331,8 +447,9 @@ export class Constellations {
     this.print = fingerprintOf(await this.doc({ thumbnail: false, view: false }));
   }
 
-  private async autosave() {
-    if (!this.d.saving()) return;
+  /** Write the autosave if the world changed since the last one (an untouched new world never replaces it). */
+  async autosave() {
+    if (!this.d.saving() || !this.d.inWorld()) return;
     await this.fingerprint();
     if (this.print === this.autoPrint) return;
     try {
@@ -370,21 +487,6 @@ export class Constellations {
 
   // ---- chips --------------------------------------------------------------
 
-  /** "Continue where you left off" (SAVE-LOAD.md §7). */
-  private offerContinue(auto: WorldDoc) {
-    this.chip.className = "cst-chip cst-continue";
-    this.chip.innerHTML = `<button data-act="continue">${GLYPH}<span>Continue <b></b></span></button><button data-act="fresh" class="cst-fresh">start fresh</button>`;
-    this.chip.querySelector("b")!.textContent = auto.name;
-    this.chip.hidden = false;
-    this.chip.onclick = (e) => {
-      const act = (e.target as HTMLElement).closest("button")?.dataset.act;
-      if (!act) return;
-      this.d.audio.start();
-      this.hideChip();
-      if (act === "continue") void this.apply(parseDoc(auto), loadPref<string | null>(AUTOSAVE_OF, null)).then(() => (this.autoPrint = this.print));
-    };
-  }
-
   /** "Jump to the saved view", offered for 8 s and never forced. */
   private offerView(view: ViewDoc) {
     this.chip.className = "cst-chip cst-eye";
@@ -402,25 +504,6 @@ export class Constellations {
   private hideChip() {
     this.chip.hidden = true;
     this.chip.onclick = null;
-  }
-
-  /** A yes/no question in the sheet's place (custom sounds need an OK). */
-  private ask(question: string): Promise<boolean> {
-    return new Promise((resolve) => {
-      const box = document.createElement("div");
-      box.className = "cst-ask";
-      box.setAttribute("role", "alertdialog");
-      box.innerHTML = `<p></p><div><button data-yes>Play them</button><button data-no>Leave them out</button></div>`;
-      box.querySelector("p")!.textContent = question;
-      document.body.append(box);
-      box.addEventListener("click", (e) => {
-        const b = (e.target as HTMLElement).closest("button");
-        if (!b) return;
-        box.remove();
-        resolve(b.hasAttribute("data-yes"));
-      });
-      box.querySelector<HTMLButtonElement>("[data-yes]")!.focus();
-    });
   }
 
   // ---- UI -----------------------------------------------------------------
@@ -447,6 +530,7 @@ export class Constellations {
   }
 
   private key(e: KeyboardEvent) {
+    if (!this.d.inWorld()) return;
     if (e.key === "Escape" && !this.sheet.hidden) return this.toggle(false);
     if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
     const k = e.key.toLowerCase();
@@ -515,7 +599,7 @@ function viewDiffers(o: { azimuth: number; elevation: number; distance: number; 
   return dAz > deg15 || Math.abs(c.elevation - o.elevation) > deg15 || Math.abs(c.distance / o.distance - 1) > 0.2 || o.target.distanceTo(new THREE.Vector3(...c.target)) > 1.5;
 }
 
-function ago(iso: string): string {
+export function ago(iso: string): string {
   const s = (Date.now() - Date.parse(iso)) / 1000;
   if (!Number.isFinite(s)) return "";
   if (s < 60) return "just now";
@@ -525,7 +609,7 @@ function ago(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
-function esc(s: string) {
+export function esc(s: string) {
   return s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 }
 

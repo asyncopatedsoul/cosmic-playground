@@ -76,7 +76,7 @@ export class PuzzleShelf {
     this.onChange?.(null);
   }
 
-  private unlocked(s: ScenarioDoc, solved: string[]) {
+  unlocked(s: ScenarioDoc, solved: string[]) {
     if (this.unlockAll) return true;
     const prev = SCENARIOS.filter((x) => x.series === s.series && x.order < s.order);
     return prev.every((x) => solved.includes(x.id));

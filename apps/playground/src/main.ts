@@ -31,6 +31,7 @@ import { PuzzleShelf } from "./ui/puzzles";
 import { RoomSheet } from "./ui/room";
 import { PulseEditor } from "./ui/pulse-editor";
 import { SoundBadge } from "./ui/sound-badge";
+import { Shell } from "./shell";
 import { World } from "./world";
 import "./style.css";
 
@@ -82,12 +83,13 @@ const cursors = new SeatCursors(stage, seats);
 const gamepads = new Gamepads({ stage, world, editor, aim, audio, seats, picker, cursors }, padSource);
 room.pads = () => gamepads.connected;
 
-// Start with a string to pluck and an orrery already turning, so the first
-// touch makes sound and the world is playing on its own right away.
-const portrait = innerHeight > innerWidth;
-world.add("spire", portrait ? new THREE.Vector3(-0.4, 0, 2.2) : new THREE.Vector3(-2.4, 0, 0.8));
-world.add("orrery", portrait ? new THREE.Vector3(0.2, 0, -1.6) : new THREE.Vector3(2.3, 0, -0.6));
-chest.toggle(true);
+// A new world starts with a string to pluck and an orrery already turning, so
+// the first touch makes sound and the world is playing on its own right away.
+const starter = () => {
+  const portrait = innerHeight > innerWidth;
+  world.add("spire", portrait ? new THREE.Vector3(-0.4, 0, 2.2) : new THREE.Vector3(-2.4, 0, 0.8));
+  world.add("orrery", portrait ? new THREE.Vector3(0.2, 0, -1.6) : new THREE.Vector3(2.3, 0, -0.6));
+};
 
 // Puzzles (docs/MODES.md): the shelf on the HUD, or open one directly with ?puzzle=first-light.
 const devBuild = import.meta.env.DEV || params.has("dev") || params.has("test");
@@ -96,10 +98,9 @@ puzzles.onChange = (mode) => {
   chest.render();
   if (mode) chest.toggle(false);
 };
-if (params.get("puzzle")) puzzles.open(params.get("puzzle")!);
 
 // Save and open worlds (docs/SAVE-LOAD.md): autosave, named saves, files and links.
-const constellations = new Constellations(document.getElementById("hud")!, {
+const constellations: Constellations = new Constellations(document.getElementById("hud")!, {
   world,
   audio,
   avatarActive: () => avatar.active,
@@ -110,10 +111,43 @@ const constellations = new Constellations(document.getElementById("hud")!, {
   afterLoad: (doc) => {
     chest.render();
     if (doc) variants.offer(doc.templates);
+    // A world file dropped on the menu opens it.
+    if (doc) shell.entered();
   },
   importToy: (text) => variants.importText(text),
   saving: () => !puzzles.mode,
+  inWorld: () => shell.state === "world",
 });
+
+// The main menu and Home (docs/MAIN-MENU.md): links, invites and ?puzzle open straight in.
+const shell: Shell = new Shell({
+  world,
+  audio,
+  constellations,
+  puzzles,
+  room,
+  starter,
+  tidy: () => {
+    editor.close();
+    listen.toggle(false);
+    focus.leave();
+    chest.toggle(false);
+    constellations.toggle(false);
+    puzzles.toggle(false);
+    room.toggle(false);
+    document.getElementById("help")!.classList.remove("open");
+    world.clearSelection();
+    input.reset();
+  },
+  setInput: (on) => (input.enabled = on),
+  openChest: () => chest.toggle(true),
+});
+// CI and scripted runs start in a new world as before; `?test&menu` keeps the menu.
+if (mode === "test" && !params.has("menu")) {
+  starter();
+  chest.toggle(true);
+  shell.entered();
+} else document.body.classList.add("in-menu");
 
 // Toy variants (docs/SAVE-LOAD.md §6): "Keep this one", the chest fan, toy files and copy/paste.
 const variants = new Variants({
@@ -129,7 +163,10 @@ editor.onKeep = (toy) => void variants.keep(toy);
 // Keeping a variant links the toy to it, which changes what a save holds.
 library.listeners.push(() => constellations.markChanged());
 // The library loads before the autosave is offered, so a continued world finds its variants.
-void library.load().then(() => constellations.start());
+void library.load().then(async () => {
+  if (shell.state === "world") await constellations.start();
+  else await shell.boot({ puzzle: params.get("puzzle") });
+});
 
 // Toys sent from the Toy Forge (forge.html, same origin) join the chest and the world.
 new BroadcastChannel("hypertoys-forge").onmessage = (ev: MessageEvent<{ t: "toy"; config: ToyConfig }>) => {
@@ -157,8 +194,10 @@ if (mode !== "off") {
 const clock = new THREE.Clock();
 stage.renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.1);
-  input.update(dt);
-  gamepads.update(dt);
+  if (shell.state === "world") {
+    input.update(dt);
+    gamepads.update(dt);
+  } else shell.update(dt);
   room.update(dt);
   world.update(dt, clock.elapsedTime);
   focus.update(dt);
@@ -168,7 +207,7 @@ stage.renderer.setAnimationLoop(() => {
 });
 
 if (fakePads) {
-  const cosmic = { world, audio, puzzles, constellations, stage, fields, aim, avatar, hotbar, room, seats, gamepads, focus, pads: fakePads, test: {} as Record<string, unknown> };
+  const cosmic = { world, audio, puzzles, constellations, shell, stage, fields, aim, avatar, hotbar, room, seats, gamepads, focus, pads: fakePads, test: {} as Record<string, unknown> };
   Object.assign(window, { cosmic });
   // The L1 exit check (docs/PLAYTESTS.md): `cosmic.test.seats()`, or open with ?scenario=seats.
   const seatsScenario = () => import("./dev/seats-scenario").then((m) => m.runSeatsScenario({ aim, world, stage, seats, gamepads, pads: fakePads, input }));
@@ -178,4 +217,7 @@ if (fakePads) {
   cosmic.test.solve = (which = 0) => puzzles.mode?.solve(which);
   // The S1 exit check (docs/SAVE-LOAD.md §9): save → load → save gives the same JSON.
   cosmic.test.roundTrip = () => import("./dev/save-roundtrip").then((m) => m.roundTrip(world));
+  // The MM1 exit check (docs/MAIN-MENU.md §9): `cosmic.test.home()`, then `cosmic.test.enter({ kind: "continue" })`.
+  cosmic.test.home = () => shell.home();
+  cosmic.test.enter = (e: Parameters<Shell["enter"]>[0]) => shell.enter(e);
 }

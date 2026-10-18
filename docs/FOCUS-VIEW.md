@@ -33,7 +33,7 @@ Status: plan · Oct 2026 · builds on [AUDIO-MIX.md](AUDIO-MIX.md) (mute/solo/fo
 ## 1. Goals
 
 1. **One toy, deeply.** A new player can take a single toy, see it large and alone, hear it on its own, and watch what each handle does to its pitch and rhythm.
-2. **Several toys, precisely.** An advanced player can line up two to eight toys and see their pitches, chords and rhythms against the beat, which shows where they agree, clash or drift.
+2. **Several toys, precisely.** An advanced player can line up two to eight toys (twelve on desktop) and see their pitches, chords and rhythms against the beat, which shows where they agree, clash or drift.
 3. **Keep what you find.** Anything that sounded good in focus view can be kept in two clicks, as a recording, a replayable sequence or a preset.
 4. **Play it back in the jam.** What you kept is one tap away outside focus view, launched on the beat.
 5. **Never disturb a room.** Entering, cycling, graphing and recording are yours alone. Only actions that change the music (launching a Sequence, placing an Ensemble) touch shared state, and they follow the room's edit rules.
@@ -113,8 +113,8 @@ n = 1            n = 3                 n = 6
 
 - Centre `C` = the current orbit target projected to the ground (or the world origin if the target is far away). The ring is always flat on the ground plane, facing the camera's starting azimuth.
 - Radius `r = 0` for n = 1, else `max(R_MIN, n·SPACING / 2π)` with `SPACING` ≈ 1.6× the largest toy footprint in the set and `R_MIN` ≈ 2.2 world units. Toy `i` sits at angle `θ_i = θ_lead + 2πi/n`.
-- Up to **8** toys. Selecting more shows a gentle "8 at a time" note and keeps the first 8; the quick-select menu still lists the rest (§5) so you can swap one in.
-- Camera: distance chosen so the ring's bounding sphere fills about 70% of the shorter screen side; elevation ≈ 25°. On a phone in portrait, the ring is squashed into an ellipse (x radius 1, z radius 0.7) so it fits.
+- Up to `RING_MAX` toys: **8** on phones and touch screens, **12** on desktop (§15.1). Selecting more shows a gentle "N at a time" note and keeps the first N; the quick-select menu still lists the rest (§5) so you can swap one in.
+- Camera: elevation ≈ 25°, distance chosen so the ring (seen as an ellipse from that height, plus the toys' height) fills about 70% of the screen's width and 75% of its height, or 60% of the height above the Trace while the Trace is open; with the Trace open the camera also aims nearer, so the ring sits above it. On a phone in portrait, the ring is squashed into an ellipse (x radius 1, z radius 0.7) so it fits. Resizing or rotating re-frames it.
 
 ### 4.2 Display pose, not a move
 
@@ -153,14 +153,14 @@ One ring toy is the **lead**. It is the one facing the camera, the one whose toy
 
 | Control | Next | Previous | Pick |
 |---|---|---|---|
-| Keyboard | `Tab` | `Shift+Tab` | `1`–`8` (by ring order) |
+| Keyboard | `Tab` | `Shift+Tab` | `1`–`8` (by ring order; on desktop `9` and `Shift+1`–`Shift+3` for 9–12) |
 | Focus bar | **›** | **‹** | Quick-select menu |
 | Touch | Swipe left on the focus bar | Swipe right | Quick-select menu |
 | Gamepad | `RB` | `LB` | Hold `Y` + D-pad |
 | MIDI | learnable | learnable | learnable |
 
 - Changing the lead turns the ring (about 300 ms, eased) so the new lead comes to the front; with n = 1 nothing moves.
-- The **quick-select menu** is a strip of toy icons along the focus bar, in ring order, with the lead raised. Tapping one makes it the lead. A **+** at the end lists toys in the world that aren't on the ring; picking one adds it (or swaps it for the selected icon when the ring has 8). Dragging an icon out of the strip removes that toy from the ring.
+- The **quick-select menu** is a strip of toy icons along the focus bar, in ring order, with the lead raised. Tapping one makes it the lead. A **+** at the end lists toys in the world that aren't on the ring; picking one adds it (or swaps it for the selected icon when the ring is full). Dragging an icon out of the strip removes that toy from the ring.
 - `Tab` normally opens the chest (`input.ts`). In focus view `Tab` cycles instead, and the chest stays on its HUD button. This is the only key whose meaning changes, and the focus bar shows a small `Tab ›` hint the first three times.
 - Digits `1`–`8` are free outside avatar mode, and focus view always leaves avatar mode, so they don't collide with the hotbar.
 
@@ -389,6 +389,9 @@ Outside focus view, `O` (or the HUD's baton glyph) opens the **Conductor**: a sh
 
 The shelf shows the whole Library (everything kept, across worlds), with a filter **This world** (default) / **All** and a search box.
 
+- **Phones:** the shelf stacks directly above the chest drawer instead of replacing it (§15.3).
+- **Puzzle finales:** a solved puzzle adds a sealed cue with **Reveal solution**; it becomes a normal cue only after a confirmation (§15.4).
+
 ### 9.2 What is saved where
 
 | Thing | In the Library | In a saved world | In a room |
@@ -486,7 +489,7 @@ F1–F4 need no storage and can start now; they are also the most useful part fo
 
 ---
 
-## 15. Decisions and open questions
+## 15. Decisions
 
 **Decided here**
 
@@ -496,9 +499,9 @@ F1–F4 need no storage and can start now; they are also the most useful part fo
 - Takes play through the engine's master and limiter (tape bus), not straight to the destination.
 - Takes are never shared through a room in v1.
 
-**Open**
+**Resolved (Oct 2026)**
 
-1. **Ring size cap.** 8 matches the Pitch Trace's readability and the screen on a phone. Should desktop allow 12?
-2. **Emitter identity for patch voices.** The voice allocator index changes as voices are stolen, so one "line" may jump between notes. Good enough for v1, or should the Trace group by pitch instead of voice for patch toys?
-3. **Where the Conductor lives on phones.** A bottom shelf fights the chest drawer for the same edge. Option: the Conductor replaces the chest drawer while open.
-4. **Cues and puzzle mode.** Should a solved puzzle's finale (MODES §6) be offered as a ready-made cue on the Conductor?
+1. **Ring size cap: desktop allows more than 8.** Phones and touch-first screens keep 8. Desktop (a fine pointer, `pointer: fine`, and a window at least 1024 px wide) allows **12**. The "N at a time" note, the quick-select swap and the `1`–`8` digit picks follow the cap: on desktop `9` picks lead 9 and `Shift+1`–`Shift+3` pick 10–12 (`-` and `=` stay toy volume). §4.1 and §5 use `RING_MAX` for the cap.
+2. **Emitter identity for stolen voices: group by pitch.** When a toy's voices can be stolen (patch toys, and any toy that doesn't report a stable `voice`), the Trace draws one line per **pitch lane**, not per allocator index: notes within ±35 cents of a lane's running pitch join that lane, and a lane that has been silent for 2 bars is retired. Toys with fixed emitters (an Orrery planet, a Kettle bubble voice) keep one line per emitter once `voice` lands (§8.1); until then every toy uses pitch lanes, which reads the same for them.
+3. **Conductor on phones: stack it above the chest.** On phones, the Conductor shelf and the chest drawer share the bottom edge as a stack: the chest stays where it is, and the open Conductor sits directly above it (shelf rows scroll sideways, at most two rows tall; the rest scroll). Neither replaces the other, so a card can still be dragged from the chest while the Conductor is open. When the focus view's sheet (§6) is up, the stack slides down to just the chest handle and the Conductor's ▶ next cue button.
+4. **Puzzle finales as cues: yes, behind a reveal.** When a puzzle (MODES §6) is solved, its finale is offered on the Conductor as a ready-made cue, but hidden: the Cues row shows a sealed card with a **Reveal solution** button. Tapping it asks for confirmation ("Reveal the solution? This shows the toys and settings that solve the puzzle.") and only then turns it into an ordinary cue (the solving toys as an Ensemble plus the finale as a Sequence). A puzzle that is not solved yet never offers its finale. In kid mode the confirmation uses the big two-button sheet.

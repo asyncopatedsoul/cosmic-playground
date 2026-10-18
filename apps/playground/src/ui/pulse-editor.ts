@@ -29,6 +29,8 @@ const SPEEDS = [
  */
 export class PulseEditor {
   toy: Toy | null = null;
+  /** Opens focus view on this toy (set by main.ts; FOCUS-VIEW.md §3.2). */
+  onFocusView: ((toy: Toy) => void) | null = null;
   /** "Keep this one": save the toy as a variant (set by main.ts; SAVE-LOAD.md §6.2). */
   onKeep: ((toy: Toy) => void) | null = null;
   private el: HTMLElement;
@@ -44,6 +46,7 @@ export class PulseEditor {
     this.el = document.getElementById("pulse")!;
     this.el.innerHTML = `
       <button class="pulse-close" aria-label="Close">×</button>
+      <button class="pulse-focus" aria-label="Focus view" title="Focus view (F)">◎</button>
       <button class="pulse-keep" aria-label="Keep this one" title="Keep this one: save it as a variant in the chest (Ctrl+Shift+K)">${starIcon()}</button>
       <svg class="pulse-ring" viewBox="-120 -120 240 240" aria-label="Pulse pattern"></svg>
       <div class="pulse-row pulse-rates"></div>
@@ -74,6 +77,7 @@ export class PulseEditor {
     this.script.addEventListener("keydown", (e) => e.stopPropagation());
     this.recipes = new RecipeBox(this.el.querySelector(".pulse-recipes")!);
     this.el.querySelector(".pulse-close")!.addEventListener("click", () => this.close());
+    this.el.querySelector(".pulse-focus")!.addEventListener("click", () => this.toy && this.onFocusView?.(this.toy));
     const keep = this.el.querySelector<HTMLElement>(".pulse-keep")!;
     keep.addEventListener("click", () => {
       if (!this.toy) return;

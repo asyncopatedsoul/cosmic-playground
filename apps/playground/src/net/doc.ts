@@ -175,7 +175,7 @@ export class WorldBinding {
       if (!this.world.restore(s)) console.warn(`room: can't place toy ${s.entry} (unknown here, or the world is full)`);
       return;
     }
-    const p = toy.group.position;
+    const p = toy.worldPos;
     this.world.applyState(toy, {
       pos: p.x !== s.pos[0] || p.y !== s.pos[1] || p.z !== s.pos[2] ? s.pos : undefined,
       params: s.params,

@@ -407,7 +407,7 @@ export abstract class Toy {
     hm.emissiveIntensity = (0.5 + beat * 0.6 + this.flash * 2.5) * dim;
     this.heart.scale.setScalar(1 + this.flash * 0.5);
     const rm = this.ring.material as THREE.MeshBasicMaterial;
-    rm.opacity = (this.selected ? 0.95 : 0.3 + this.flash * 0.4) * (listening === "dimmed" ? 0.5 : 1);
+    rm.opacity = (this.selected || this.world.selection.has(this.id) ? 0.95 : 0.3 + this.flash * 0.4) * (listening === "dimmed" ? 0.5 : 1);
     this.ring.visible = listening !== "muted";
     this.dashes.visible = listening === "muted";
     this.halo.visible = listening === "solo" || listening === "focus";

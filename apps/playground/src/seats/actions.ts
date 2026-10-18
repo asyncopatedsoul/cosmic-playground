@@ -26,7 +26,7 @@ const WORLD_RADIUS = 12;
 /** Whether a toy may be placed at a surface hit (avatar right-click, the place picker). */
 export function canPlace(world: World, hit: AimHit): boolean {
   if (hit.kind !== "surface" || !hit.inReach || !world.canEdit() || world.count >= MAX_TOYS) return false;
-  return world.toys.every((t) => !t || t.group.position.distanceTo(hit.point!) > BASE_GAP);
+  return world.toys.every((t) => !t || t.worldPos.distanceTo(hit.point!) > BASE_GAP);
 }
 
 /** Another seat on this client is dragging `toy`. */
@@ -65,7 +65,8 @@ export interface GrabHooks {
 /** Grab: drag a toy along the surface under the seat's cursor. Null if the room is locked or another seat holds it. */
 export function grab(d: ActionDeps, seat: SeatState, toy: Toy, hooks: GrabHooks = {}): DragHandler | null {
   const { aim, seats, world } = d;
-  if (!world.canEdit() || heldByOther(seats, seat, toy)) return null;
+  // On focus view's ring a toy is shown, not placed: dragging its base does nothing (FOCUS-VIEW.md §4.2).
+  if (!world.canEdit() || toy.home || heldByOther(seats, seat, toy)) return null;
   let offset: THREE.Vector3 | null = null;
   return hold(seat, toy, {
     move: (p) => {

@@ -11,6 +11,8 @@ export class ListenSheet {
   private el: HTMLElement;
   private list: HTMLElement;
   private parts: { render(): void }[] = [];
+  /** Focus view on the checked rows (set by main.ts). */
+  onFocusSelected: (() => void) | null = null;
 
   constructor(
     private world: World,
@@ -24,6 +26,7 @@ export class ListenSheet {
       <ul class="listen-list"></ul>
       <div class="listen-foot">
         <button class="listen-clear" title="Clear every mute, solo and focus (Shift+M)">Clear all</button>
+        <button class="listen-focus" title="Put the checked toys on the focus ring (F)">Focus selected</button>
         <label title="For classrooms: silence this tab while it's in the background">
           <input type="checkbox" class="listen-hidden"> Mute when hidden
         </label>
@@ -31,6 +34,11 @@ export class ListenSheet {
     anchor.after(this.el);
     this.list = this.el.querySelector(".listen-list")!;
     this.el.querySelector(".listen-clear")!.addEventListener("click", () => world.mix.clearToys());
+    this.el.querySelector(".listen-focus")!.addEventListener("click", () => {
+      this.toggle(false);
+      this.onFocusSelected?.();
+    });
+    world.selectionListeners.push(() => this.refresh());
     const hidden = this.el.querySelector<HTMLInputElement>(".listen-hidden")!;
     hidden.addEventListener("change", () => world.mix.setMuteWhenHidden(hidden.checked));
     // Keys pressed here (arrows on a dial, Space on a button) stay here.
@@ -66,6 +74,11 @@ export class ListenSheet {
       if (!toy) continue;
       const li = document.createElement("li");
       li.style.setProperty("--toy", toy.css);
+      const pick = document.createElement("input");
+      pick.type = "checkbox";
+      pick.className = "listen-pick";
+      pick.setAttribute("aria-label", `Select ${toyName(toy)} for focus view`);
+      pick.addEventListener("change", () => this.world.select(toy, pick.checked));
       const icon = document.createElement("span");
       icon.className = "listen-icon";
       icon.innerHTML = toyEntry(toy.entryId)?.icon ?? "";
@@ -74,9 +87,9 @@ export class ListenSheet {
       name.textContent = toyName(toy);
       const dial = volumeDial(() => toy.volume, (v) => toy.setVolume(v), `${toyName(toy)} volume`);
       const buttons = listenButtons(this.world, toy);
-      li.append(icon, name, dial.el, buttons.el);
+      li.append(pick, icon, name, dial.el, buttons.el);
       this.list.append(li);
-      this.parts.push(dial, buttons);
+      this.parts.push(dial, buttons, { render: () => (pick.checked = this.world.selection.has(toy.id)) });
     }
     if (!this.parts.length) this.list.innerHTML = `<li class="listen-empty">No toys yet</li>`;
     this.refresh();
@@ -86,5 +99,6 @@ export class ListenSheet {
     if (this.el.hidden) return;
     for (const p of this.parts) p.render();
     this.el.querySelector<HTMLInputElement>(".listen-hidden")!.checked = this.world.mix.muteWhenHidden;
+    this.el.querySelector<HTMLButtonElement>(".listen-focus")!.disabled = !this.world.selection.size;
   }
 }

@@ -1123,13 +1123,15 @@ body.world-locked .hud-room::after {
   font-size: 13px;
 }
 
-.listen-clear {
+.listen-clear,
+.listen-focus {
   padding: 4px 10px;
   border-radius: 12px;
   border: 1px solid var(--panel-edge);
 }
 
-.listen-clear:hover {
+.listen-clear:hover,
+.listen-focus:not(:disabled):hover {
   background: rgba(255, 255, 255, 0.08);
 }
 
@@ -1388,6 +1390,302 @@ body.world-locked .hud-room::after {
 .seat-cursor.flip b {
   left: auto;
   right: 14px;
+}
+
+/* ---- Focus view (FOCUS-VIEW.md) ---------------------------------------- */
+
+.focus-bar {
+  position: fixed;
+  top: calc(max(10px, env(safe-area-inset-top)) + 54px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: calc(100vw - 24px);
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  backdrop-filter: blur(12px);
+}
+
+.focus-bar[hidden] {
+  display: none;
+}
+
+.focus-bar > button,
+.focus-listen button {
+  min-width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  color: var(--ink-dim);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.focus-bar > button:hover,
+.focus-listen button:hover {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.focus-bar > button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.focus-bar svg {
+  width: 20px;
+  height: 20px;
+  margin: auto;
+}
+
+.focus-strip {
+  display: flex;
+  gap: 3px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.focus-icon {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  padding: 5px;
+  border-radius: 10px;
+  color: var(--toy);
+  opacity: 0.55;
+  transition: transform 0.15s, opacity 0.15s;
+}
+
+.focus-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.focus-icon[aria-selected="true"] {
+  opacity: 1;
+  transform: translateY(-3px);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 -2px 0 var(--toy);
+}
+
+.focus-sep {
+  width: 1px;
+  height: 22px;
+  margin: 0 4px;
+  background: var(--panel-edge);
+}
+
+.focus-listen {
+  display: flex;
+}
+
+.focus-listen button[aria-checked="true"],
+.focus-trace[aria-pressed="true"] {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.focus-hint {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 12px;
+  font-size: 12px;
+  color: var(--ink-dim);
+}
+
+.focus-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 200px;
+  max-height: 50vh;
+  overflow: auto;
+  padding: 8px;
+  border-radius: 14px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  backdrop-filter: blur(12px);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.focus-menu[hidden] {
+  display: none;
+}
+
+.focus-menu small {
+  color: var(--ink-dim);
+  padding: 2px 6px 4px;
+}
+
+.focus-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  text-align: left;
+}
+
+.focus-menu button:hover,
+.focus-menu button:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.focus-menu button svg {
+  width: 22px;
+  height: 22px;
+  color: var(--toy);
+}
+
+.focus-window {
+  position: fixed;
+  z-index: 4;
+  border-radius: 16px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  backdrop-filter: blur(12px);
+}
+
+.focus-window[hidden] {
+  display: none;
+}
+
+/* The Trace docks along the bottom, above the chest handle. */
+.trace {
+  left: 50%;
+  bottom: calc(max(10px, env(safe-area-inset-bottom)) + 52px);
+  transform: translateX(-50%);
+  width: min(920px, calc(100vw - 24px));
+  display: flex;
+  flex-direction: column;
+  padding: 6px 10px 8px;
+}
+
+.trace-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink-dim);
+}
+
+.trace-bar b {
+  color: var(--ink);
+  font-weight: 600;
+  margin-right: auto;
+}
+
+.trace-bar button {
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--ink-dim);
+  border: 1px solid transparent;
+}
+
+.trace-bar button[aria-pressed="true"] {
+  color: var(--ink);
+  border-color: var(--panel-edge);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.trace-canvas {
+  width: 100%;
+  height: 190px;
+  margin-top: 4px;
+}
+
+.trace-notes {
+  font-size: 12px;
+  color: var(--ink-dim);
+}
+
+.trace-notes table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.trace-notes tbody {
+  display: block;
+  max-height: 120px;
+  overflow: auto;
+}
+
+/* Phones: the Trace is a sheet over the lower half (FOCUS-VIEW.md §6). */
+@media (max-width: 600px) {
+  .trace {
+    width: 100vw;
+    left: 0;
+    transform: none;
+    bottom: 0;
+    border-radius: 16px 16px 0 0;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+
+  .trace-canvas {
+    height: 32vh;
+  }
+
+  /* The strip gets its own row so every ring toy stays visible. */
+  .focus-bar {
+    flex-wrap: wrap;
+    justify-content: center;
+    border-radius: 22px;
+    width: calc(100vw - 24px);
+  }
+
+  .focus-strip {
+    order: -1;
+    flex-basis: 100%;
+    justify-content: center;
+  }
+
+  .focus-sep {
+    display: none;
+  }
+}
+
+.lasso {
+  position: fixed;
+  z-index: 7;
+  pointer-events: none;
+  border: 1px dashed rgba(200, 210, 255, 0.8);
+  background: rgba(150, 160, 255, 0.08);
+  border-radius: 4px;
+}
+
+.listen-pick {
+  accent-color: var(--toy);
+  margin: 0 2px 0 0;
+}
+
+.listen-focus:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.pulse-focus {
+  position: absolute;
+  top: 6px;
+  right: 40px;
+  width: 32px;
+  height: 32px;
+  font-size: 18px;
+  color: var(--ink-dim);
+}
+
+.pulse-focus:hover,
+.pulse-close:hover {
+  color: var(--ink);
 }
 
 /* ---- Puzzles (docs/MODES.md) ------------------------------------------- */

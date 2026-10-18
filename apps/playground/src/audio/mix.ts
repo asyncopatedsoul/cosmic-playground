@@ -32,6 +32,12 @@ export class MixState {
   readonly toyMute = new Set<string>();
   readonly solo = new Set<string>();
   focus: string | null = null;
+  /**
+   * Focus view's ring (FOCUS-VIEW.md §4.4): while non-empty it replaces solo and
+   * single focus. `focusSolo` silences everything off the set instead of ducking it.
+   */
+  readonly focusSet = new Set<string>();
+  focusSolo = false;
   /** Called after any change, for the HUD, Listen sheet and toy panel. */
   readonly listeners: (() => void)[] = [];
 
@@ -54,6 +60,7 @@ export class MixState {
   /** The level this player hears `toy` at, before its volume. */
   monitor(toy: Toy): number {
     if (this.toyMute.has(toy.id)) return 0;
+    if (this.focusSet.size) return this.focusSet.has(toy.id) ? 1 : this.focusSolo ? 0 : FOCUS_DUCK;
     if (this.solo.size) return this.solo.has(toy.id) ? 1 : 0;
     if (this.focus) return toy.id === this.focus ? 1 : FOCUS_DUCK;
     return 1;
@@ -61,6 +68,7 @@ export class MixState {
 
   listening(toy: Toy): Listening {
     if (this.toyMute.has(toy.id)) return "muted";
+    if (this.focusSet.size) return this.focusSet.has(toy.id) ? (this.focusSolo ? "solo" : "focus") : "dimmed";
     if (this.solo.size) return this.solo.has(toy.id) ? "solo" : "dimmed";
     if (this.focus) return toy.id === this.focus ? "focus" : "dimmed";
     return "normal";
@@ -107,6 +115,14 @@ export class MixState {
     this.changed();
   }
 
+  /** Set (or clear, with an empty list) focus view's listening set. */
+  setFocusSet(ids: Iterable<string>, solo: boolean) {
+    this.focusSet.clear();
+    for (const id of ids) this.focusSet.add(id);
+    this.focusSolo = solo;
+    this.changed();
+  }
+
   /** Clear every toy's mute, solo and focus (global mute and volume stay). */
   clearToys() {
     this.toyMute.clear();
@@ -121,7 +137,8 @@ export class MixState {
     const soloed = this.solo.delete(toy.id);
     const focused = this.focus === toy.id;
     if (focused) this.focus = null;
-    if (muted || soloed || focused) this.changed();
+    const ringed = this.focusSet.delete(toy.id);
+    if (muted || soloed || focused || ringed) this.changed();
   }
 
   /** A toy's volume changed (here or from the room): redraw the controls. */

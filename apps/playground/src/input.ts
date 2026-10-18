@@ -1,6 +1,8 @@
+import * as THREE from "three";
 import type { Aim, AimHit } from "./aim";
 import type { AudioHost } from "./audio/host";
 import type { Avatar } from "./avatar/avatar";
+import type { FocusView } from "./focus/focus";
 import type { AimPreview } from "./render/aim-preview";
 import type { PlacementGhost } from "./render/ghost";
 import type { Stage } from "./render/stage";
@@ -9,6 +11,7 @@ import type { Seats } from "./seats/seats";
 import { toyEntry } from "./toys/registry";
 import type { DragHandler, PointerInfo, Toy } from "./toys/toy";
 import type { Chest } from "./ui/chest";
+import type { FocusBar } from "./ui/focus-bar";
 import type { Hotbar } from "./ui/hotbar";
 import { toggleGlobalMute } from "./ui/hud";
 import type { ListenSheet } from "./ui/listen";
@@ -43,6 +46,10 @@ interface Track {
   hit: PointerInfo["hit"];
   handler: DragHandler | null;
   twist: boolean;
+  /** Shift+click on a toy: select it instead of playing it (FOCUS-VIEW.md §3.1). */
+  select: boolean;
+  /** Shift+drag on empty ground: a lasso rectangle. */
+  lasso: HTMLElement | null;
 }
 
 interface TwoFinger {
@@ -67,6 +74,8 @@ export interface InputDeps {
   badge: SoundBadge;
   /** Seat 1 (the mouse) is `seats.mouse`; gamepad seats share its helpers (seats/actions.ts). */
   seats: Seats;
+  focus: FocusView;
+  focusBar: FocusBar;
 }
 
 /** Holding H longer than this makes focus momentary: it ends on release. */
@@ -168,6 +177,8 @@ export class Input {
       hit: hit.intersection,
       handler: null,
       twist: false,
+      select: !!toy && e.shiftKey && !avatar.active && e.button === 0,
+      lasso: null,
     };
 
     if (this.tracks.size === 1 && !this.locked) {
@@ -182,9 +193,13 @@ export class Input {
       return;
     }
     this.tracks.set(e.pointerId, t);
-    if (!toy) return;
+    if (!toy) {
+      if (e.shiftKey && !avatar.active && e.button === 0) t.lasso = lassoBox();
+      return;
+    }
 
     this.lastToy = toy;
+    if (t.select) return;
     if (e.altKey || e.button === 2) t.twist = true;
     else if (t.part === "base") t.handler = this.grab(toy);
     else t.handler = dragPart(this.actions, this.seat, toy, t.part, this.info(e, t, x, y));
@@ -221,6 +236,16 @@ export class Input {
     const y = this.locked ? t.y + e.movementY : e.clientY;
     const info = this.info(e, t, x, y);
     if (!t.moved && Math.hypot(x - t.startX, y - t.startY) > TAP_SLOP) t.moved = true;
+    if (t.lasso) {
+      const s = t.lasso.style;
+      s.left = `${Math.min(x, t.startX)}px`;
+      s.top = `${Math.min(y, t.startY)}px`;
+      s.width = `${Math.abs(x - t.startX)}px`;
+      s.height = `${Math.abs(y - t.startY)}px`;
+      t.x = x;
+      t.y = y;
+      return;
+    }
 
     if (this.two && this.tracks.size >= 2) {
       t.x = x;
@@ -266,9 +291,19 @@ export class Input {
       for (const other of this.tracks.values()) other.moved = true;
       return;
     }
+    if (t.lasso) {
+      t.lasso.remove();
+      if (t.moved) this.lassoSelect(t.startX, t.startY, t.x, t.y);
+      else this.d.world.clearSelection();
+      return;
+    }
     const info = this.info(e, t, t.x, t.y);
     t.handler?.end?.(info);
     if (t.moved) return;
+    if (t.toy && t.select) {
+      this.d.world.select(t.toy);
+      return;
+    }
     if (t.toy) {
       if (t.part === "heart") {
         this.d.editor.toggle(t.toy);
@@ -279,7 +314,23 @@ export class Input {
     }
   }
 
+  /** Select every toy whose centre is inside the screen rectangle. */
+  private lassoSelect(x0: number, y0: number, x1: number, y1: number) {
+    const { stage, world } = this.d;
+    const r = stage.canvas.getBoundingClientRect();
+    const p = new THREE.Vector3();
+    const [l, rt, tp, b] = [Math.min(x0, x1), Math.max(x0, x1), Math.min(y0, y1), Math.max(y0, y1)];
+    for (const toy of world.toys) {
+      if (!toy) continue;
+      p.copy(toy.group.position).project(stage.camera);
+      const sx = r.left + ((p.x + 1) / 2) * r.width;
+      const sy = r.top + ((1 - p.y) / 2) * r.height;
+      if (sx >= l && sx <= rt && sy >= tp && sy <= b) world.select(toy, true);
+    }
+  }
+
   private cancel(e: PointerEvent) {
+    this.tracks.get(e.pointerId)?.lasso?.remove();
     if (this.tracks.get(e.pointerId)?.handler) release(this.seat);
     this.tracks.delete(e.pointerId);
     if (this.tracks.size < 2) this.two = null;
@@ -373,6 +424,7 @@ export class Input {
       return;
     }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (this.focusKey(e)) return;
     if (this.listenKey(e)) return;
     if (avatar.active && /^Digit[1-9]$/.test(e.code)) {
       hotbar.select(Number(e.code.slice(5)) - 1);
@@ -431,6 +483,7 @@ export class Input {
       case "Escape":
         editor.close();
         this.d.listen.toggle(false);
+        world.clearSelection();
         return;
       case "KeyQ":
         toy?.nudge("twist", -0.03);
@@ -446,6 +499,38 @@ export class Input {
         }
         return;
     }
+  }
+
+  /** Focus view keys (FOCUS-VIEW.md §10): F, and inside it Tab, digits, T and Esc. */
+  private focusKey(e: KeyboardEvent): boolean {
+    const { focus, focusBar } = this.d;
+    if (e.code === "KeyF" && !e.shiftKey) {
+      focus.toggle(this.target());
+      return true;
+    }
+    if (!focus.active) return false;
+    const digit = /^Digit([0-9])$/.exec(e.code);
+    switch (true) {
+      case e.code === "Tab":
+        e.preventDefault();
+        focus.cycle(e.shiftKey ? -1 : 1);
+        focusBar.tabbed();
+        return true;
+      case e.code === "Escape":
+        focus.leave();
+        return true;
+      case e.code === "KeyT":
+        focusBar.toggleTrace();
+        return true;
+      case !!digit: {
+        // 1–9 pick by ring order; on a 12-toy ring Shift+1–3 pick 10–12.
+        const n = Number(digit![1]);
+        const i = e.shiftKey ? 9 + n - 1 : n - 1;
+        if (n > 0 && i < focus.ring.length) focus.setLead(i);
+        return true;
+      }
+    }
+    return false;
   }
 
   /** Listening keys (AUDIO-MIX.md §4.5): M, Shift+M, N, Shift+N, H, L, - and =. */
@@ -526,6 +611,13 @@ export class Input {
     if (part === "heart") return "pulse";
     return hit.toy!.hint(part);
   }
+}
+
+function lassoBox(): HTMLElement {
+  const el = document.createElement("div");
+  el.className = "lasso";
+  document.body.append(el);
+  return el;
 }
 
 /** Poke strength from pressure (touch/pen) or modifiers (mouse). */

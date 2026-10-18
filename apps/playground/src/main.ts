@@ -6,6 +6,7 @@ import { Avatar } from "./avatar/avatar";
 import { FakeGamepadSource } from "./controllers/fake-gamepad";
 import { Gamepads } from "./controllers/gamepad";
 import { MergedSource, NavigatorGamepads, type GamepadSource } from "./controllers/source";
+import { FocusView } from "./focus/focus";
 import { Input } from "./input";
 import type { ToyConfig } from "./audio/config";
 import { AimPreview } from "./render/aim-preview";
@@ -18,6 +19,7 @@ import { Chest } from "./ui/chest";
 import { Constellations } from "./ui/constellations";
 import { library } from "./persist/library";
 import { Variants } from "./ui/variants";
+import { FocusBar } from "./ui/focus-bar";
 import { Hotbar } from "./ui/hotbar";
 import { Hud } from "./ui/hud";
 import { ListenSheet } from "./ui/listen";
@@ -50,7 +52,13 @@ avatar.onEnter = () => chest.toggle(false);
 const ghost = new PlacementGhost(stage.scene);
 const room = new RoomSheet(document.getElementById("hud")!, world, stage, avatar, aim);
 const seats = new Seats();
-const input = new Input({ stage, world, editor, chest, audio, aim, preview, avatar, hotbar, ghost, modes, listen, badge, seats });
+const focus = new FocusView(world, avatar, editor);
+const focusBar = new FocusBar(world, focus);
+const selected = () => world.toys.filter((t): t is NonNullable<typeof t> => !!t && world.selection.has(t.id));
+listen.onFocusSelected = () => focus.enter(selected());
+// The toy panel's focus glyph: that toy, plus the selection if it's in it.
+editor.onFocusView = (toy) => focus.enter(world.selection.has(toy.id) ? [toy, ...selected().filter((t) => t !== toy)] : [toy]);
+const input = new Input({ stage, world, editor, chest, audio, aim, preview, avatar, hotbar, ghost, modes, listen, badge, seats, focus, focusBar });
 
 const params = new URLSearchParams(location.search);
 
@@ -129,12 +137,13 @@ stage.renderer.setAnimationLoop(() => {
   gamepads.update(dt);
   room.update(dt);
   world.update(dt, clock.elapsedTime);
+  focus.update(dt);
   editor.update();
   stage.render();
 });
 
 if (fakePads) {
-  const cosmic = { world, audio, puzzles, constellations, stage, fields, aim, avatar, hotbar, room, seats, gamepads, pads: fakePads, test: {} as Record<string, unknown> };
+  const cosmic = { world, audio, puzzles, constellations, stage, fields, aim, avatar, hotbar, room, seats, gamepads, focus, pads: fakePads, test: {} as Record<string, unknown> };
   Object.assign(window, { cosmic });
   // The L1 exit check (docs/PLAYTESTS.md): `cosmic.test.seats()`, or open with ?scenario=seats.
   const seatsScenario = () => import("./dev/seats-scenario").then((m) => m.runSeatsScenario({ aim, world, stage, seats, gamepads, pads: fakePads, input }));

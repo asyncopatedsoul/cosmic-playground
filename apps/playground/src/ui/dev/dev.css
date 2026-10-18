@@ -1,0 +1,262 @@
+/* Developer panel (docs/DEV-MODE.md). Loaded only in dev, test and feedback modes. */
+.devp {
+  position: fixed;
+  top: 8px;
+  bottom: 8px;
+  right: 8px;
+  z-index: 50;
+  width: min(440px, calc(100vw - 16px));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  background: rgba(10, 12, 28, 0.94);
+  border: 1px solid var(--panel-edge);
+  border-radius: 10px;
+  font: 12px/1.4 ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+  color: var(--ink);
+  -webkit-user-select: text;
+  user-select: text;
+}
+.devp[data-dock="left"] {
+  right: auto;
+  left: 8px;
+}
+.devp[hidden],
+.devp section[hidden] {
+  display: none;
+}
+.devp header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.devp header nav {
+  display: flex;
+  gap: 2px;
+  margin-left: 6px;
+}
+.devp-mode {
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: #000;
+}
+.devp-fps {
+  margin-left: auto;
+  color: var(--ink-dim);
+}
+.devp-close {
+  margin-left: auto;
+  font-size: 16px;
+}
+.devp-fps:not([hidden]) + .devp-close {
+  margin-left: 0;
+}
+.devp button,
+.devp select,
+.devp input[type="search"] {
+  font: inherit;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--panel-edge);
+  border-radius: 5px;
+  padding: 2px 7px;
+  cursor: pointer;
+}
+.devp button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+.devp button:focus-visible,
+.devp select:focus-visible,
+.devp input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.devp [role="tab"][aria-selected="true"],
+.devp button[aria-pressed="true"],
+.devp button.on {
+  background: rgba(255, 92, 138, 0.25);
+  border-color: var(--accent);
+}
+.devp section {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.devp h3 {
+  margin: 8px 0 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-dim);
+}
+.devp-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.devp-row input[type="search"] {
+  flex: 1;
+  min-width: 80px;
+  cursor: text;
+}
+.devp-label {
+  min-width: 40px;
+  color: var(--ink-dim);
+}
+.devp-master {
+  flex: 1;
+}
+.devp-meter {
+  flex: 1;
+  height: 10px;
+}
+.devp-note {
+  margin: 0;
+  color: var(--ink-dim);
+}
+.devp code {
+  color: var(--ink);
+}
+.devp-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr max-content 1fr;
+  gap: 4px 8px;
+  align-items: center;
+}
+.devp-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.devp-warn {
+  margin: 0;
+  padding-left: 16px;
+  color: #ffc46b;
+}
+
+/* Logs */
+.devp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+.devp-chip {
+  opacity: 0.45;
+}
+.devp-chip.on {
+  opacity: 1;
+}
+.devp-list {
+  position: relative;
+  flex: 1;
+  min-height: 120px;
+  overflow: auto;
+  border: 1px solid var(--panel-edge);
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.3);
+}
+.devp-rows {
+  position: relative;
+}
+.devp-ev {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 18px;
+  padding: 0 4px;
+  display: flex;
+  gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.devp-ev:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.devp-ev .t,
+.devp-ev .b {
+  color: var(--ink-dim);
+  min-width: 48px;
+  text-align: right;
+}
+.devp-ev .b {
+  min-width: 40px;
+}
+.devp-ev .ch {
+  min-width: 52px;
+}
+.devp-ev a {
+  color: #8fd3ff;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.devp-ev .d {
+  color: var(--ink-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.devp-ev.lvl-warn {
+  background: rgba(255, 196, 107, 0.1);
+}
+.devp-ev.lvl-error {
+  background: rgba(255, 92, 92, 0.18);
+}
+.devp-ev.lvl-debug .ev {
+  color: var(--ink-dim);
+}
+.ch-app .ch { color: #c9c9ff; }
+.ch-player .ch { color: #8fd3ff; }
+.ch-world .ch { color: #9dffb0; }
+.ch-toy .ch { color: #ffe08a; }
+.ch-net .ch { color: #ff9fd0; }
+.ch-session .ch { color: #ffb38a; }
+.ch-audio .ch { color: #b9a3ff; }
+.ch-perf .ch { color: #aaaaaa; }
+.devp-count {
+  margin-right: auto;
+  color: var(--ink-dim);
+}
+
+/* State */
+.devp-tree details {
+  margin-left: 10px;
+}
+.devp-tree > details {
+  margin-left: 0;
+}
+.devp-tree summary {
+  cursor: pointer;
+}
+.devp-tree i {
+  color: var(--ink-dim);
+  font-style: normal;
+}
+.devp-leaf {
+  margin-left: 22px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.devp-leaf span {
+  color: #ffe08a;
+}
+.devp .devp-copy {
+  margin-left: 6px;
+  padding: 0 4px;
+  border: none;
+  background: none;
+  opacity: 0.5;
+}
+.devp .devp-copy:hover {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .devp * {
+    transition: none !important;
+  }
+}

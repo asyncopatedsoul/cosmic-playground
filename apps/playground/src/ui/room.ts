@@ -8,6 +8,7 @@ import { canHost, newCode, parseRoom, RELAY_URL, RoomSession, servedByRelay, SHA
 import { save } from "../prefs";
 import type { Stage } from "../render/stage";
 import type { World } from "../world";
+import { emit } from "../events";
 
 const PEOPLE = `<svg viewBox="0 0 20 20"><circle cx="7" cy="7" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="14" cy="8" r="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M1.5 17c.5-3.5 3-5 5.5-5s5 1.5 5.5 5M12 12.4c3 0 5.6 1.3 6 4.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
 const MODE = { orbit: "◎", walk: "🚶", fly: "✈" } as const;
@@ -88,6 +89,7 @@ export class RoomSheet {
     this.leave();
     const session = new RoomSession(addr, this.me.name);
     this.session = session;
+    emit("session.join", { code: addr.code, name: this.me.name });
     this.binding = new WorldBinding(this.world, session);
     this.presence = new Presence(session, this.stage, this.avatar, this.aim, this.me);
     session.onStatus = () => this.render();
@@ -108,6 +110,7 @@ export class RoomSheet {
   }
 
   leave() {
+    if (this.session) emit("session.leave", { code: this.session.address.code });
     this.binding?.dispose();
     this.presence?.dispose();
     this.session?.leave();

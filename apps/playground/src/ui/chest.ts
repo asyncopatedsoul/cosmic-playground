@@ -6,6 +6,7 @@ import type { Stage } from "../render/stage";
 import { TOYS, type ToyEntry } from "../toys/registry";
 import type { World } from "../world";
 import type { Variants } from "./variants";
+import { emit } from "../events";
 
 /** How long a press or a resting mouse waits before fanning out a toy's variants. */
 const FAN_PRESS_MS = 450;
@@ -259,6 +260,7 @@ export class Chest {
   }
 
   toggle(open = !this.el.classList.contains("open")) {
+    if (open !== this.el.classList.contains("open")) emit("player.chest", { open });
     this.el.classList.toggle("open", open);
     if (!open) this.hideFan();
   }

@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 import { roomRelay } from "@hypertoys/relay";
 import { defineConfig } from "vite";
 import { buildId } from "../../scripts/build-id.mjs";
+import { devFiles } from "./dev-files";
 
 // Tunnels (scripts/tunnel.mjs) serve the app from an ngrok hostname; Vite
 // rejects unknown Host headers unless they are allowed here.
@@ -13,7 +14,7 @@ export default defineConfig({
   server: { allowedHosts },
   preview: { allowedHosts },
   define: { __BUILD_ID__: JSON.stringify(buildId()) },
-  plugins: [roomRelay()],
+  plugins: [roomRelay(), devFiles()],
   build: {
     target: "es2022",
     rolldownOptions: {

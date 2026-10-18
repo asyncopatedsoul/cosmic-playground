@@ -1,0 +1,23 @@
+{
+  "format": "cosmic-dev-config",
+  "version": 1,
+  "audio": { "master": null, "muted": true },
+  "log": {
+    "ring": 5000,
+    "console": false,
+    "sink": "devlog",
+    "channels": {
+      "app": "info",
+      "player": "info",
+      "world": "info",
+      "toy": "info",
+      "net": "info",
+      "session": "info",
+      "audio": "warn",
+      "perf": "off"
+    },
+    "throttle": { "toy.param": 100, "toy.derived": 1000, "toy.move": 250, "toy.volume": 150, "audio.master": 150 }
+  },
+  "panel": { "hotkey": "Backquote", "dock": "right", "open": false },
+  "flags": { "fps": false }
+}

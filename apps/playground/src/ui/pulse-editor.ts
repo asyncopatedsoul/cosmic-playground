@@ -5,6 +5,7 @@ import { euclid, SnapView, type Toy } from "../toys/toy";
 import { RecipeBox } from "./recipe-box";
 import { SoundRow } from "./sound";
 import type { World } from "../world";
+import { emit } from "../events";
 
 const RING_R = 92;
 const LONG_PRESS_MS = 420;
@@ -102,6 +103,7 @@ export class PulseEditor {
   }
 
   open(toy: Toy) {
+    if (this.toy !== toy) emit("player.pulseEdit", { toy: toy.id });
     if (this.toy) this.toy.selected = false;
     this.toy = toy;
     toy.selected = true;
@@ -128,6 +130,7 @@ export class PulseEditor {
   }
 
   close() {
+    if (this.toy) emit("player.pulseEdit", { toy: null });
     if (this.toy) this.toy.selected = false;
     this.toy = null;
     this.sound.show(null);

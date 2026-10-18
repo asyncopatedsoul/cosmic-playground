@@ -7,6 +7,8 @@ import { FakeGamepadSource } from "./controllers/fake-gamepad";
 import { Gamepads } from "./controllers/gamepad";
 import { MergedSource, NavigatorGamepads, type GamepadSource } from "./controllers/source";
 import { FocusView } from "./focus/focus";
+import { devMode } from "./devmode";
+import { keepEarly } from "./events";
 import { Input } from "./input";
 import type { ToyConfig } from "./audio/config";
 import { AimPreview } from "./render/aim-preview";
@@ -36,6 +38,16 @@ const stage = new Stage(document.getElementById("stage") as HTMLCanvasElement);
 const audio = new AudioHost();
 const fields = new Fields();
 const world = new World(stage, audio, fields);
+// Developer mode (docs/DEV-MODE.md §3): dev and test start muted, before the
+// first sound can happen; the dev chunk then applies the config.
+const mode = devMode();
+// The room sheet rewrites the URL on join; dev settings in it (?dev.log…) are read from this copy.
+const startSearch = location.search;
+if (mode !== "off") keepEarly();
+if (mode === "dev" || mode === "test") {
+  world.mix.muted = true;
+  world.mix.apply();
+}
 const editor = new PulseEditor(world);
 const chest = new Chest(world, stage, audio);
 const hud = new Hud(world, audio);
@@ -63,7 +75,7 @@ const input = new Input({ stage, world, editor, chest, audio, aim, preview, avat
 const params = new URLSearchParams(location.search);
 
 // Gamepad seats (docs/PLAYTESTS.md §3). In dev, scripted pads join the real ones (`cosmic.pads`).
-const fakePads = import.meta.env.DEV || params.has("dev") || params.has("test") ? new FakeGamepadSource() : null;
+const fakePads = mode === "dev" || mode === "test" ? new FakeGamepadSource() : null;
 const padSource: GamepadSource = fakePads ? new MergedSource([new NavigatorGamepads(), fakePads]) : new NavigatorGamepads();
 const picker = new PlacePicker(world);
 const cursors = new SeatCursors(stage, seats);
@@ -130,6 +142,18 @@ new BroadcastChannel("hypertoys-forge").onmessage = (ev: MessageEvent<{ t: "toy"
 const wake = document.getElementById("wake")!;
 audio.onReady = () => wake.classList.add("gone");
 
+// Logs, the dev panel and the devlog sink: a separate chunk players never load.
+let devFrame: ((dt: number) => void) | null = null;
+if (mode !== "off") {
+  void import("./dev/boot")
+    .then((m) => m.boot({ mode, search: startSearch, world, audio, stage, room, editor, avatar }))
+    .then((tools) => {
+      devFrame = tools.frame;
+      const cosmic = (window as { cosmic?: Record<string, unknown> }).cosmic;
+      if (cosmic) cosmic.dev = tools;
+    });
+}
+
 const clock = new THREE.Clock();
 stage.renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.1);
@@ -140,6 +164,7 @@ stage.renderer.setAnimationLoop(() => {
   focus.update(dt);
   editor.update();
   stage.render();
+  devFrame?.(dt);
 });
 
 if (fakePads) {

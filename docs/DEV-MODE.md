@@ -5,7 +5,7 @@
 > a **notes** box that saves feedback with enough context for a person or an LLM coding assistant
 > to act on, and **scenarios** that save and load a known state and drive scripted tests in CI.
 
-Status: plan · Oct 2026 · builds on [SAVE-LOAD.md](SAVE-LOAD.md) (WorldDoc), [AUDIO-MIX.md](AUDIO-MIX.md) §3 (master and global mute), [MULTIPLAYER.md](MULTIPLAYER.md) §10 (headless jam, onset log), [HELP-SYSTEM.md](HELP-SYSTEM.md) §2 (event bus)
+Status: plan · Oct 2026 · **D0 and D1 done** (config, muted start, panel, logs, devlog sessions) · builds on [SAVE-LOAD.md](SAVE-LOAD.md) (WorldDoc), [AUDIO-MIX.md](AUDIO-MIX.md) §3 (master and global mute), [MULTIPLAYER.md](MULTIPLAYER.md) §10 (headless jam, onset log), [HELP-SYSTEM.md](HELP-SYSTEM.md) §2 (event bus)
 
 ---
 
